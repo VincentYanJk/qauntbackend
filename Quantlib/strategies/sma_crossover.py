@@ -9,11 +9,11 @@ class SMACrossover(bt.Strategy):
     def __init__(self):
         self.sma1 = bt.indicators.SimpleMovingAverage(self.data.close, period=self.params.short_period)
         self.sma2 = bt.indicators.SimpleMovingAverage(self.data.close, period=self.params.long_period)
+        self.crossover = bt.ind.CrossOver(self.sma1, self.sma2)
 
     def next(self):
-        if not self.position:
-            if self.sma1[0] > self.sma2[0]:
-                self.buy()
-        else:
-            if self.sma1[0] < self.sma2[0]:
-                self.sell()
+        print(self.data.datetime.date(0), self.data.close[0], self.crossover[0])
+        if self.crossover > 0:
+            self.buy()
+        elif self.crossover < 0:
+            self.sell()

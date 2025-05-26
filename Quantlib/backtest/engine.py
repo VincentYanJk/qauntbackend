@@ -24,8 +24,9 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False):
     df.columns = [col.strip().lower() for col in df.columns]
     print(df.columns)
     # df.set_index("datetime", inplace=True)
+    df = df.sort_values(by="datetime")
 
-    print(df.columns)
+
     class PandasData(bt.feeds.PandasData):
         datetime = None
         openinterest = -1
@@ -45,17 +46,33 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False):
     cerebro.adddata(data)
     cerebro.addstrategy(strategy_class)
     cerebro.broker.set_cash(cash)
+
     cerebro.addanalyzer(SignalRecorder, _name='signals')
 
     result = cerebro.run()
     strat = result[0]
 
     equity = cerebro.broker.get_value()
-    values = [cash + v.pnl for v in strat.analyzers.signals.trades]
+    values = [cash + v["pnl"] for v in strat.analyzers.signals.trades]
     dates = [v['datetime'] for v in strat.analyzers.signals.trades]
     trades_df = strat.analyzers.signals.get_analysis()
 
-    equity_curve = pd.Series([cash] + values, index=[df.index[0]] + dates).sort_index()
+    
+    
+    
+    if len(dates) > 0:
+        print("")
+        if df.index[0] == dates[0]:
+            # 避免 index 重复
+            equity_curve = pd.Series(values, index=dates).sort_index()
+        else:
+            equity_curve = pd.Series(
+                [cash] + values,
+                index=[df.index[0]] + dates
+            ).sort_index()    
+    else:
+        equity_curve = pd.Series([cash], index=[df.index[0]])
+    # equity_curve = pd.Series([cash] + values, index=[df.index[0]] + dates).sort_index()
     df['equity'] = equity_curve.reindex(df.index).fillna(method='ffill')
     df['buy_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x > 0 else None)
     df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
