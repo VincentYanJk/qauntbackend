@@ -1,0 +1,27 @@
+
+from Quantlib.visualization.visualize import (
+    plot_equity_curve,
+    plot_drawdown,
+    plot_signals,
+    save_trade_log
+)
+
+
+from Quantlib.strategies.sma_crossover import SMACrossover
+from Quantlib.backtest.engine import run_backtest
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+df, trades = run_backtest(
+    strategy_class=SMACrossover,
+    data_path="data/BTC-Daily.csv",
+    cash=100000,
+    plot=True
+)
+
+# Visualization and trade logging
+plot_equity_curve(df["equity"])
+plot_drawdown(df["equity"])
+plot_signals(df, df.get("buy_signal"), df.get("sell_signal"))
+save_trade_log(trades)
+print("finish-finish")

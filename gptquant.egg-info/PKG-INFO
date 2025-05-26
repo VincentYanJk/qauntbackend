@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: gptquant
+Version: 0.1.0
+Summary: Professional BTC Quant Trading Framework
+Author: Your Name
+Requires-Dist: backtrader
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: scikit-learn
+Requires-Dist: xgboost
+Requires-Dist: torch
+Requires-Dist: python-binance
+Requires-Dist: nbformat

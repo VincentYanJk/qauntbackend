@@ -1,0 +1,9 @@
+backtrader
+pandas
+numpy
+matplotlib
+scikit-learn
+xgboost
+torch
+python-binance
+nbformat
