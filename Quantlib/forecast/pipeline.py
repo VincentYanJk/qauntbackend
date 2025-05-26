@@ -6,6 +6,7 @@ import pandas as pd
 import joblib
 import os
 
+
 class FactorPipeline:
     def __init__(self, df_path, feature_set, model_type="xgboost", model_save_path="models/auto_model.pkl"):
         self.df_path = df_path
@@ -57,11 +58,13 @@ class FactorPipeline:
                 else:
                     raise ValueError(f"Unknown feature: {name}")
 
-        equity = run_backtest(
+        from Quantlib.visualization.visualize import plot_equity_curve
+
+        df, trades = run_backtest(
             strategy_class=lambda: CustomMLStrategy(),
             data_path=self.df_path,
             cash=100000,
-            plot=True
+            plot=False
         )
-from Quantlib.visualization.visualize import plot_equity_curve
-plot_equity_curve(equity)
+
+        plot_equity_curve(df["equity"])

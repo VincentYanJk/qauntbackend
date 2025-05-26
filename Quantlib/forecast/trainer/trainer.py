@@ -1,5 +1,5 @@
 from Quantlib.forecast.features import generate_features
-from Quantlib.forecast.models.xgboost_model import create_xgboost_model
+from Quantlib.forecast.models import xgboost_model
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import joblib
@@ -16,7 +16,7 @@ def train_model(df_path, model_type="xgboost", save_path="model.pkl"):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
     if model_type == "xgboost":
-        model = create_xgboost_model()
+        model = xgboost_model
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
 
