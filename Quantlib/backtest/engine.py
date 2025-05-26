@@ -18,14 +18,29 @@ class SignalRecorder(bt.Analyzer):
         return pd.DataFrame(self.trades)
 
 def run_backtest(strategy_class, data_path, cash=100000, plot=False):
-    df = pd.read_csv(data_path, parse_dates=["datetime"])
-    df.set_index("datetime", inplace=True)
 
+  
+    df = pd.read_csv(data_path, parse_dates=["datetime"])
+    df.columns = [col.strip().lower() for col in df.columns]
+    print(df.columns)
+    # df.set_index("datetime", inplace=True)
+
+    print(df.columns)
     class PandasData(bt.feeds.PandasData):
         datetime = None
         openinterest = -1
 
-    data = PandasData(dataname=df)
+    # data = PandasData(dataname=df)
+    data = bt.feeds.PandasData(
+    dataname=df,
+    datetime='datetime',
+    open='open',
+    high='high',
+    low='low',
+    close='close',
+    volume='volume',
+    openinterest=None
+)
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.adddata(data)
     cerebro.addstrategy(strategy_class)

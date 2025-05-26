@@ -12,7 +12,7 @@ from Quantlib.backtest.engine import run_backtest
 
 run_backtest(
     strategy_class=lambda: MLSignalStrategy(use_ml=True, model_type="xgboost"),
-    data_path="data/BTCUSDT.csv",
+    data_path="data/BTC-Daily.csv",
     cash=100000,
     plot=True
 )

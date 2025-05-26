@@ -18,10 +18,13 @@ df, trades = run_backtest(
     cash=100000,
     plot=True
 )
-
+print("finish-finish----1")
 # Visualization and trade logging
 plot_equity_curve(df["equity"])
+print("finish-finish----2")
 plot_drawdown(df["equity"])
+print("finish-finish----3")
 plot_signals(df, df.get("buy_signal"), df.get("sell_signal"))
+print("finish-finish----4")
 save_trade_log(trades)
-print("finish-finish")
+print("finish-finish----5")
