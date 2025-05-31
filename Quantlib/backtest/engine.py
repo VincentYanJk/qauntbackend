@@ -1,5 +1,7 @@
 import backtrader as bt
 import pandas as pd
+import numpy as np
+from .metrics import PerformanceAnalyzer
 
 class SignalRecorder(bt.Analyzer):
     def __init__(self):
@@ -83,5 +85,39 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     df['equity'] = equity_curve.reindex(index=df.index).fillna(method='ffill')
     df['buy_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x > 0 else None)
     df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
+
+    # Calculate performance metrics
+    initial_value = cash
+    final_value = df['equity'].iloc[-1]
+    total_return = (final_value - initial_value) / initial_value
+
+    # Calculate Sharpe Ratio
+    returns = df['equity'].pct_change().dropna()
+    sharpe_ratio = np.sqrt(252) * (returns.mean() / returns.std()) if len(returns) > 0 else 0
+
+    # Calculate Maximum Drawdown
+    cummax = df['equity'].cummax()
+    drawdown = (df['equity'] - cummax) / cummax
+    max_drawdown = drawdown.min()
+
+    # Calculate trading statistics
+    total_trades = len(trades_df)
+    profitable_trades = len(trades_df[trades_df['pnl'] > 0])
+    win_rate = profitable_trades / total_trades if total_trades > 0 else 0
+    avg_won = trades_df[trades_df['pnl'] > 0]['pnl'].mean() if profitable_trades > 0 else 0
+    avg_lost = trades_df[trades_df['pnl'] < 0]['pnl'].mean() if len(trades_df[trades_df['pnl'] < 0]) > 0 else 0
+
+    # Print performance summary
+    print("\n=== Performance Summary ===")
+    print(f"Initial Capital: ${initial_value:,.2f}")
+    print(f"Final Capital: ${final_value:,.2f}")
+    print(f"Total Return: {total_return:.2%}")
+    print(f"Sharpe Ratio: {sharpe_ratio:.4f}")
+    print(f"Maximum Drawdown: {max_drawdown:.2%}")
+    print(f"Total Trades: {total_trades}")
+    print(f"Win Rate: {win_rate:.2%}")
+    print(f"Average Profit: ${avg_won:.2f}")
+    print(f"Average Loss: ${avg_lost:.2f}")
+    print("========================\n")
 
     return df, trades_df
