@@ -1,3 +1,6 @@
+import sys
+print(f"Using Python from: {sys.executable}")
+
 from Quantlib.visualization.visualize import (
     plot_equity_curve,
     plot_drawdown,
@@ -8,7 +11,7 @@ from Quantlib.visualization.visualize import (
 from Quantlib.strategies.sma_crossover import SMACrossover
 from Quantlib.backtest.engine import run_backtest
 import sys, os
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 df, trades = run_backtest(
     strategy_class=SMACrossover,  # Remove lambda, use direct class reference

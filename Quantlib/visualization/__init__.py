@@ -1,6 +1,6 @@
-from .visualize import (
-    plot_equity_curve,
-    plot_drawdown,
-    plot_signals,
-    save_trade_log
-)
+"""
+Visualization module initialization
+"""
+from .visualize import plot_equity_curve
+
+__all__ = ['plot_equity_curve']

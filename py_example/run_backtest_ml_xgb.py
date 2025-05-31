@@ -7,17 +7,39 @@ from Quantlib.visualization.visualize import (
 
 from Quantlib.strategies.ml_signal_strategy import MLSignalStrategy
 from Quantlib.backtest.engine import run_backtest
+from Quantlib.forecast import load_model, train_model
+import os
 
-# Run backtest and capture return values
+# Ensure models directory exists
+os.makedirs("models", exist_ok=True)
+
+MODEL_TYPE = "xgboost"
+MODEL_PATH = f"models/{MODEL_TYPE}_model.pkl"
+FEATURES = ["return_1", "sma_ratio", "volatility"]  # Match the default feature set
+
+# First train the model
+print("Training XGBoost model...")
+train_model(
+    df_path="data/BTC-Daily.csv",
+    model_type=MODEL_TYPE,
+    save_path=MODEL_PATH,
+    features=FEATURES  # Specify the features to use
+)
+
+# Load the trained model
+print("Loading trained model...")
+model = load_model(MODEL_TYPE, model_path=MODEL_PATH)
+
+print("Running backtest with trained model...")
+# Then run backtest with trained model
 df, trades = run_backtest(
-    strategy_class=MLSignalStrategy,  # Use direct class reference
+    strategy_class=MLSignalStrategy,
     data_path="data/BTC-Daily.csv",
     cash=100000,
     plot=True,
-    kwargs={  # Pass parameters through kwargs
-        'use_ml': True,
-        'model_type': "xgboost",
-        'trade_size': 0.1
+    kwargs={
+        'model': model,  # Pass the model instance directly
+        'features': FEATURES  # Use the same features as training
     }
 )
 

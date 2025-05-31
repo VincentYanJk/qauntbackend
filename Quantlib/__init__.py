@@ -1,13 +1,29 @@
-# from .backtest import engine, metrics, data_loader
-# from .execution import binance_broker, symbol_config, trade_executor, live_ml_strategy
-# from .forecast import features, models, predictor, pipeline, trainer, factory
-# from .strategies import sma_crossover, rsi_reversion, bollinger_band, macd_crossover, ml_signal_strategy, trend_following
-# from .visualization import visualize
-# from .data import processor
+"""
+Main Quantlib package initialization
+"""
+from .backtest import run_backtest, PerformanceAnalyzer
+from .strategies import (
+    SMACrossover,
+    RSIReversion, 
+    BollingerBand,
+    MACDCrossover,
+    MLSignalStrategy
+)
+from .forecast import load_model, train_model
+from .visualization import plot_equity_curve
+from .data import preprocess_btc_csv, DataProcessor
 
-from .backtest import run_backtest, metrics, data_loader
-from .execution import trade_executor
-from .strategies import sma_crossover, rsi_reversion
-from . import forecast
-from . import visualization
-from . import data
+__all__ = [
+    'run_backtest',
+    'PerformanceAnalyzer',
+    'SMACrossover',
+    'RSIReversion',
+    'BollingerBand',
+    'MACDCrossover', 
+    'MLSignalStrategy',
+    'load_model',
+    'train_model',
+    'plot_equity_curve',
+    'preprocess_btc_csv',
+    'DataProcessor'
+]

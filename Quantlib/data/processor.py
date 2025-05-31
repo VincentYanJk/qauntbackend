@@ -1,48 +1,54 @@
 import pandas as pd
 import numpy as np
 import backtrader as bt
-from Quantlib.indicators.sma import SMA
-from Quantlib.indicators.stddev import StdDev
+from typing import List, Callable
 
-def load_and_clean(filepath):
-    df = pd.read_csv(filepath)
-    df.dropna(inplace=True)
-    df = df[df['close'] > 0]
-    df['datetime'] = pd.to_datetime(df['datetime'])
-    df.sort_values('datetime', inplace=True)
-    return df
-
-class PreprocessStrategy(bt.Strategy):
-    params = (('sma_period_short', 10), ('sma_period_long', 30), ('vol_period', 10),)
-
+class DataProcessor:
     def __init__(self):
-        self.sma_10 = SMA(self.data.close, period=self.p.sma_period_short)
-        self.sma_30 = SMA(self.data.close, period=self.p.sma_period_long)
-        self.volatility = StdDev(self.data.close, period=self.p.vol_period)
+        self.indicators = {}  # Dictionary of name: calculation_function
+        
+    def add_indicator(self, name: str, calculation_func: Callable):
+        """Add a new indicator calculation function"""
+        self.indicators[name] = calculation_func
+        
+    def remove_indicator(self, name: str):
+        """Remove an indicator by name"""
+        self.indicators.pop(name, None)
+        
+    def process_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Process data with registered indicators"""
+        processed = df.copy()
+        
+        for name, func in self.indicators.items():
+            try:
+                result = func(processed)
+                if isinstance(result, (pd.Series, np.ndarray)):
+                    processed[name] = result
+                elif isinstance(result, pd.DataFrame):
+                    # Prefix columns with indicator name to avoid conflicts
+                    result = result.add_prefix(f"{name}_")
+                    processed = pd.concat([processed, result], axis=1)
+            except Exception as e:
+                print(f"Error calculating indicator {name}: {e}")
+                
+        return processed
 
-    def next(self):
-        pass  # Just calculate indicators, results will be collected later
-
-def preprocess_btc_csv(filepath, output_path=None):
-    df = load_and_clean(filepath)
-    df["log_return"] = np.log(df["close"] / df["close"].shift(1))
-
-    class PandasData(bt.feeds.PandasData):
-        datetime = None
-        openinterest = -1
-
-    cerebro = bt.Cerebro(stdstats=False)
-    data = PandasData(dataname=df)
-    cerebro.adddata(data)
-    cerebro.addstrategy(PreprocessStrategy)
-    cerebro.run()
-
-    strat = cerebro.runstrats[0][0]
-    df["sma_10"] = strat.sma_10.array
-    df["sma_30"] = strat.sma_30.array
-    df["sma_ratio"] = df["sma_10"] / df["sma_30"]
-    df["volatility"] = strat.volatility.array
-
-    if output_path:
-        df.to_csv(output_path, index=False)
+def preprocess_btc_csv(csv_path: str) -> pd.DataFrame:
+    """Load and preprocess BTC price data from CSV"""
+    df = pd.read_csv(csv_path)
+    df['datetime'] = pd.to_datetime(df['timestamp'])
+    df.set_index('datetime', inplace=True)
     return df
+
+# Example indicator functions
+def calculate_sma(df: pd.DataFrame, window: int = 20) -> pd.Series:
+    """Calculate Simple Moving Average"""
+    return df['close'].rolling(window=window).mean()
+
+def calculate_rsi(df: pd.DataFrame, window: int = 14) -> pd.Series:
+    """Calculate Relative Strength Index"""
+    delta = df['close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
