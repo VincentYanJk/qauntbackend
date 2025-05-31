@@ -17,36 +17,47 @@ class SignalRecorder(bt.Analyzer):
     def get_analysis(self):
         return pd.DataFrame(self.trades)
 
-def run_backtest(strategy_class, data_path, cash=100000, plot=False):
-
-  
-    df = pd.read_csv(data_path, parse_dates=["datetime"])
+def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None):
+    """
+    Run backtest with strategy parameters
+    
+    Args:
+        strategy_class: Strategy class to run
+        data_path: Path to data file
+        cash: Initial cash amount
+        plot: Whether to plot results
+        kwargs: Additional strategy parameters
+    """
+    df = pd.read_csv(data_path)
     df.columns = [col.strip().lower() for col in df.columns]
     print(df.columns)
-    # df.set_index("datetime", inplace=True)
+    
+    # Convert datetime column
+    df['datetime'] = pd.to_datetime(df['datetime'])
     df = df.sort_values(by="datetime")
 
-
-    class PandasData(bt.feeds.PandasData):
-        datetime = None
-        openinterest = -1
-
-    # data = PandasData(dataname=df)
+    # Create PandasData feed with explicit datetime column
     data = bt.feeds.PandasData(
-    dataname=df,
-    datetime='datetime',
-    open='open',
-    high='high',
-    low='low',
-    close='close',
-    volume='volume',
-    openinterest=None
-)
+        dataname=df,
+        datetime='datetime',  # Specify datetime column
+        open='open',
+        high='high',
+        low='low',
+        close='close',
+        volume='volume',
+        openinterest=-1
+    )
+    
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.adddata(data)
-    cerebro.addstrategy(strategy_class)
+    
+    # Add strategy with parameters if provided
+    if kwargs is not None:
+        cerebro.addstrategy(strategy_class, **kwargs)
+    else:
+        cerebro.addstrategy(strategy_class)
+        
     cerebro.broker.set_cash(cash)
-
     cerebro.addanalyzer(SignalRecorder, _name='signals')
 
     result = cerebro.run()
@@ -56,24 +67,20 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False):
     values = [cash + v["pnl"] for v in strat.analyzers.signals.trades]
     dates = [v['datetime'] for v in strat.analyzers.signals.trades]
     trades_df = strat.analyzers.signals.get_analysis()
-
-    
-    
     
     if len(dates) > 0:
-        print("")
-        if df.index[0] == dates[0]:
-            # 避免 index 重复
-            equity_curve = pd.Series(values, index=dates).sort_index()
+        if dates[0] == df['datetime'].iloc[0]:
+            equity_curve = pd.Series(values, index=dates)
         else:
             equity_curve = pd.Series(
                 [cash] + values,
-                index=[df.index[0]] + dates
-            ).sort_index()    
+                index=[df['datetime'].iloc[0]] + dates
+            )
     else:
-        equity_curve = pd.Series([cash], index=[df.index[0]])
-    # equity_curve = pd.Series([cash] + values, index=[df.index[0]] + dates).sort_index()
-    df['equity'] = equity_curve.reindex(df.index).fillna(method='ffill')
+        equity_curve = pd.Series([cash], index=[df['datetime'].iloc[0]])
+
+    df.set_index('datetime', inplace=True)
+    df['equity'] = equity_curve.reindex(index=df.index).fillna(method='ffill')
     df['buy_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x > 0 else None)
     df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
 

@@ -3,6 +3,7 @@ import pandas as pd
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 def plot_equity_curve(equity_series):
     plt.figure(figsize=(12, 4))
     plt.plot(equity_series, label="Equity Curve")
@@ -36,11 +37,20 @@ def plot_factor_exposures(df):
 
 def plot_signals(data, buy_signals=None, sell_signals=None):
     plt.figure(figsize=(12, 4))
-    plt.plot(data["close"], label="Close Price")
+    plt.plot(data.index, data["close"], label="Close Price")
+    
+    # Plot buy signals
     if buy_signals is not None:
-        plt.plot(buy_signals.index, buy_signals, "^", label="Buy", color="green", markersize=8)
+        buy_points = data[buy_signals.notnull()].index
+        buy_prices = data.loc[buy_points, "close"]
+        plt.scatter(buy_points, buy_prices, marker="^", color="green", s=100, label="Buy")
+    
+    # Plot sell signals
     if sell_signals is not None:
-        plt.plot(sell_signals.index, sell_signals, "v", label="Sell", color="red", markersize=8)
+        sell_points = data[sell_signals.notnull()].index
+        sell_prices = data.loc[sell_points, "close"]
+        plt.scatter(sell_points, sell_prices, marker="v", color="red", s=100, label="Sell")
+    
     plt.title("Price and Signals")
     plt.xlabel("Time")
     plt.ylabel("Price")

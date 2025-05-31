@@ -10,7 +10,7 @@ train_model(
 )
 
 equity = run_backtest(
-    strategy_class=lambda: MLSignalStrategy(use_ml=True, model_type="xgboost"),
+    strategy_class=lambda: MLSignalStrategy(use_ml=True, model_type="xgboost", trade_size=0.1),
     data_path="data/BTCUSDT.csv",
     cash=100000,
     plot=False

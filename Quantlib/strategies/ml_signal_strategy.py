@@ -3,7 +3,8 @@ import backtrader as bt
 class MLSignalStrategy(bt.Strategy):
     params = dict(
         use_ml=True,
-        model_type="xgboost"
+        model_type="xgboost",
+        trade_size=1.0
     )
 
     def __init__(self):
@@ -24,6 +25,6 @@ class MLSignalStrategy(bt.Strategy):
 
         signal = self.model.predict(row)
         if not self.position and signal == 1:
-            self.buy()
+            self.buy(size=self.params.trade_size)
         elif self.position and signal == 0:
-            self.sell()
+            self.sell(size=self.params.trade_size)

@@ -11,7 +11,7 @@ train_lstm_model(
 )
 
 equity = run_backtest(
-    strategy_class=lambda: MLSignalStrategy(use_ml=True, model_type="lstm"),
+    strategy_class=lambda: MLSignalStrategy(use_ml=True, model_type="lstm", trade_size=0.1),
     data_path="data/BTCUSDT.csv",
     cash=100000,
     plot=False

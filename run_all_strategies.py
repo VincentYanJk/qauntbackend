@@ -6,12 +6,12 @@ from Quantlib.strategies.macd_crossover import MACDCrossover
 from Quantlib.strategies.ml_signal_strategy import MLSignalStrategy
 
 strategy_list = [
-    ("RSI Reversion", RSIReversion),
-    ("Trend Following", TrendFollowing),
-    ("Bollinger Band", BollingerBand),
-    ("MACD Crossover", MACDCrossover),
-    ("ML - XGBoost", lambda: MLSignalStrategy(use_ml=True, model_type="xgboost")),
-    ("ML - LSTM", lambda: MLSignalStrategy(use_ml=True, model_type="lstm")),
+    ("RSI Reversion", lambda: RSIReversion(trade_size=0.1)),
+    ("Trend Following", lambda: TrendFollowing(trade_size=0.1)),
+    ("Bollinger Band", lambda: BollingerBand(trade_size=0.1)),
+    ("MACD Crossover", lambda: MACDCrossover(trade_size=0.1)),
+    ("ML - XGBoost", lambda: MLSignalStrategy(use_ml=True, model_type="xgboost", trade_size=0.1)),
+    ("ML - LSTM", lambda: MLSignalStrategy(use_ml=True, model_type="lstm", trade_size=0.1)),
 ]
 
 for name, strategy in strategy_list:

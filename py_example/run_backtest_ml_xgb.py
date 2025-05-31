@@ -1,4 +1,3 @@
-
 from Quantlib.visualization.visualize import (
     plot_equity_curve,
     plot_drawdown,
@@ -6,15 +5,20 @@ from Quantlib.visualization.visualize import (
     save_trade_log
 )
 
-
 from Quantlib.strategies.ml_signal_strategy import MLSignalStrategy
 from Quantlib.backtest.engine import run_backtest
 
-run_backtest(
-    strategy_class=lambda: MLSignalStrategy(use_ml=True, model_type="xgboost"),
+# Run backtest and capture return values
+df, trades = run_backtest(
+    strategy_class=MLSignalStrategy,  # Use direct class reference
     data_path="data/BTC-Daily.csv",
     cash=100000,
-    plot=True
+    plot=True,
+    kwargs={  # Pass parameters through kwargs
+        'use_ml': True,
+        'model_type': "xgboost",
+        'trade_size': 0.1
+    }
 )
 
 # Visualization and trade logging
