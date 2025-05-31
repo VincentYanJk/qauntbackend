@@ -6,6 +6,7 @@ from .metrics import PerformanceAnalyzer
 class SignalRecorder(bt.Analyzer):
     def __init__(self):
         self.trades = []
+        super().__init__()
 
     def notify_trade(self, trade):
         if trade.isclosed:
@@ -13,10 +14,14 @@ class SignalRecorder(bt.Analyzer):
                 'datetime': self.strategy.data.datetime.datetime(0),
                 'price': trade.price,
                 'size': trade.size,
-                'pnl': trade.pnl
+                'pnl': trade.pnl,
+                'commission': trade.commission,
+                'pnlcomm': trade.pnlcomm
             })
 
     def get_analysis(self):
+        if not self.trades:
+            return pd.DataFrame(columns=['datetime', 'price', 'size', 'pnl', 'commission', 'pnlcomm'])
         return pd.DataFrame(self.trades)
 
 def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None):
@@ -66,11 +71,12 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     strat = result[0]
 
     equity = cerebro.broker.get_value()
-    values = [cash + v["pnl"] for v in strat.analyzers.signals.trades]
-    dates = [v['datetime'] for v in strat.analyzers.signals.trades]
     trades_df = strat.analyzers.signals.get_analysis()
     
-    if len(dates) > 0:
+    if len(trades_df) > 0:
+        values = [cash + trades_df['pnlcomm'].cumsum().iloc[i] for i in range(len(trades_df))]
+        dates = trades_df['datetime'].tolist()
+        
         if dates[0] == df['datetime'].iloc[0]:
             equity_curve = pd.Series(values, index=dates)
         else:
@@ -82,7 +88,7 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
         equity_curve = pd.Series([cash], index=[df['datetime'].iloc[0]])
 
     df.set_index('datetime', inplace=True)
-    df['equity'] = equity_curve.reindex(index=df.index).fillna(method='ffill')
+    df['equity'] = equity_curve.reindex(index=df.index).ffill()  # Use ffill() instead of fillna(method='ffill')
     df['buy_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x > 0 else None)
     df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
 
@@ -93,7 +99,7 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
 
     # Calculate Sharpe Ratio
     returns = df['equity'].pct_change().dropna()
-    sharpe_ratio = np.sqrt(252) * (returns.mean() / returns.std()) if len(returns) > 0 else 0
+    sharpe_ratio = np.sqrt(252) * (returns.mean() / returns.std()) if len(returns) > 0 and returns.std() != 0 else 0
 
     # Calculate Maximum Drawdown
     cummax = df['equity'].cummax()
@@ -102,10 +108,16 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
 
     # Calculate trading statistics
     total_trades = len(trades_df)
-    profitable_trades = len(trades_df[trades_df['pnl'] > 0])
-    win_rate = profitable_trades / total_trades if total_trades > 0 else 0
-    avg_won = trades_df[trades_df['pnl'] > 0]['pnl'].mean() if profitable_trades > 0 else 0
-    avg_lost = trades_df[trades_df['pnl'] < 0]['pnl'].mean() if len(trades_df[trades_df['pnl'] < 0]) > 0 else 0
+    if total_trades > 0:
+        profitable_trades = len(trades_df[trades_df['pnlcomm'] > 0])
+        win_rate = profitable_trades / total_trades
+        avg_won = trades_df[trades_df['pnlcomm'] > 0]['pnlcomm'].mean() if profitable_trades > 0 else 0
+        avg_lost = trades_df[trades_df['pnlcomm'] < 0]['pnlcomm'].mean() if len(trades_df[trades_df['pnlcomm'] < 0]) > 0 else 0
+    else:
+        profitable_trades = 0
+        win_rate = 0
+        avg_won = 0
+        avg_lost = 0
 
     # Print performance summary
     print("\n=== Performance Summary ===")
