@@ -32,7 +32,7 @@ model = load_model(MODEL_TYPE, model_path=MODEL_PATH)
 
 print("Running backtest with trained model...")
 # Then run backtest with trained model
-df, trades = run_backtest(
+df, trades_df, performance = run_backtest(
     strategy_class=MLSignalStrategy,
     data_path="data/BTC-Daily.csv",
     cash=100000,
@@ -43,8 +43,11 @@ df, trades = run_backtest(
     }
 )
 
+# Print performance metrics
+performance.print_all()
+
 # Visualization and trade logging
 plot_equity_curve(df["equity"])
 plot_drawdown(df["equity"])
 plot_signals(df, df.get("buy_signal"), df.get("sell_signal"))
-save_trade_log(trades)
+save_trade_log(trades_df)
