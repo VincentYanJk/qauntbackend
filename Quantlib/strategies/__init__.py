@@ -11,6 +11,6 @@ __all__ = [
     'MLSignalStrategy',
     'SMACrossover',
     'RSIReversion',
-    'MACDCrossover',
+    'MACDCrossover', 
     'BollingerBand'
 ]

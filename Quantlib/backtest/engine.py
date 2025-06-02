@@ -33,7 +33,10 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
         data_path: Path to data file
         cash: Initial cash amount
         plot: Whether to plot results
-        kwargs: Additional strategy parameters
+        kwargs: Additional strategy parameters including:
+            - trade_size: Position size as fraction of portfolio
+            - commission_scheme: Dictionary with commission settings
+            - slippage_scheme: Dictionary with slippage settings
     """
     df = pd.read_csv(data_path)
     df.columns = [col.strip().lower() for col in df.columns]
@@ -58,12 +61,25 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.adddata(data)
     
-    # Add strategy with parameters if provided
-    if kwargs is not None:
-        cerebro.addstrategy(strategy_class, **kwargs)
-    else:
-        cerebro.addstrategy(strategy_class)
-        
+    # Extract broker settings from kwargs
+    if kwargs is None:
+        kwargs = {}
+    
+    # Handle broker settings first
+    if 'commission_scheme' in kwargs:
+        comm_scheme = kwargs.pop('commission_scheme')
+        cerebro.broker.setcommission(**comm_scheme)
+    
+    if 'slippage_scheme' in kwargs:
+        slip_scheme = kwargs.pop('slippage_scheme')
+        if 'slip_perc' in slip_scheme:
+            cerebro.broker.set_slippage_perc(slip_scheme['slip_perc'])
+        if 'slip_fixed' in slip_scheme:
+            cerebro.broker.set_slippage_fixed(slip_scheme['slip_fixed'])
+    
+    # Add strategy with remaining parameters
+    cerebro.addstrategy(strategy_class, **kwargs)
+    
     cerebro.broker.set_cash(cash)
     cerebro.addanalyzer(SignalRecorder, _name='signals')
 
@@ -88,7 +104,7 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
         equity_curve = pd.Series([cash], index=[df['datetime'].iloc[0]])
 
     df.set_index('datetime', inplace=True)
-    df['equity'] = equity_curve.reindex(index=df.index).ffill()  # Use ffill() instead of fillna(method='ffill')
+    df['equity'] = equity_curve.reindex(index=df.index).ffill()
     df['buy_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x > 0 else None)
     df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
 
@@ -113,11 +129,13 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
         win_rate = profitable_trades / total_trades
         avg_won = trades_df[trades_df['pnlcomm'] > 0]['pnlcomm'].mean() if profitable_trades > 0 else 0
         avg_lost = trades_df[trades_df['pnlcomm'] < 0]['pnlcomm'].mean() if len(trades_df[trades_df['pnlcomm'] < 0]) > 0 else 0
+        total_commission = trades_df['commission'].sum()
     else:
         profitable_trades = 0
         win_rate = 0
         avg_won = 0
         avg_lost = 0
+        total_commission = 0
 
     # Print performance summary
     print("\n=== Performance Summary ===")
@@ -130,6 +148,7 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     print(f"Win Rate: {win_rate:.2%}")
     print(f"Average Profit: ${avg_won:.2f}")
     print(f"Average Loss: ${avg_lost:.2f}")
+    print(f"Total Commission Paid: ${total_commission:.2f}")
     print("========================\n")
 
     return df, trades_df

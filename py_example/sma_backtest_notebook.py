@@ -7,6 +7,10 @@
 # The SMA crossover strategy is a trend-following strategy that generates trading signals based on the intersection of two moving averages:
 # - Buy when the shorter-term SMA crosses above the longer-term SMA
 # - Sell when the shorter-term SMA crosses below the longer-term SMA
+#
+# We'll also include realistic trading costs:
+# - Commission: 0.2% per trade (typical for crypto exchanges)
+# - Slippage: 0.1% (conservative estimate for liquid markets)
 
 # %% [markdown]
 # ## Setup and Imports
@@ -28,6 +32,29 @@ from Quantlib.backtest.engine import run_backtest
 import os
 import pandas as pd
 
+# Add parent directory to Python path
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# %% [markdown]
+# ## Configure Trading Costs
+# 
+# Let's set up our commission and slippage parameters to make the backtest more realistic:
+
+# %%
+# Define commission and slippage settings
+commission_scheme = {
+    'commission': 0.002,  # 0.2% trading fee
+    'margin': None,      # No margin trading
+    'mult': 1.0,        # No leverage
+}
+
+slippage_scheme = {
+    'slip_perc': 0.001,  # 0.1% slippage
+    'slip_fixed': 0.0,   # No fixed slippage
+    'slip_open': True,   # Apply slippage on open orders
+}
+
 # %% [markdown]
 # ## Running the Backtest
 # 
@@ -40,7 +67,7 @@ import pandas as pd
 
 # %%
 # Verify data file exists and peek at the data
-data_path = "data/BTC-Daily.csv"
+data_path = "../data/BTC-Daily.csv"
 if not os.path.exists(data_path):
     raise FileNotFoundError(f"Data file not found at {data_path}. Please check the file path.")
 
@@ -51,7 +78,7 @@ print(df_preview)
 print("\nColumns available:", df_preview.columns.tolist())
 
 # %% [markdown]
-# Now that we've verified our data, let's run the backtest:
+# Now that we've verified our data, let's run the backtest with trading costs:
 
 # %%
 print("Running backtest...")
@@ -60,7 +87,11 @@ df, trades = run_backtest(
     data_path=data_path,
     cash=100000,
     plot=True,
-    kwargs={'trade_size': 0.1}  # Trading with 10% of portfolio
+    kwargs={
+        'trade_size': 0.1,  # Trading with 10% of portfolio
+        'commission_scheme': commission_scheme,  # Add commission settings
+        'slippage_scheme': slippage_scheme  # Add slippage settings
+    }
 )
 print("\nBacktest completed successfully!")
 

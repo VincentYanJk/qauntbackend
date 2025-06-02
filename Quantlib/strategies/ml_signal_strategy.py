@@ -10,7 +10,7 @@ class MLSignalStrategy(bt.Strategy):
         ('model', None),  # ML model instance
         ('features', ['return_1', 'sma_ratio', 'volatility']),  # Features to use for prediction
     )
-    
+
     def __init__(self):
         super().__init__()
         if self.params.model is None:
@@ -21,7 +21,7 @@ class MLSignalStrategy(bt.Strategy):
         self.order = None
         self.last_signal = None
         print("Strategy initialized with features:", self.params.features)
-        
+
     def next(self):
         if len(self) < 2:  # Need at least 2 data points
             return
@@ -29,7 +29,7 @@ class MLSignalStrategy(bt.Strategy):
         # Don't trade if we have a pending order
         if self.order:
             return
-            
+
         # Get the current market data
         data = self._prepare_data()
         
