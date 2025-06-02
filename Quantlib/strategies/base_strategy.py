@@ -52,4 +52,4 @@ class BaseStrategy(bt.Strategy):
     def log(self, txt, dt=None):
         """Logging function"""
         dt = dt or self.datas[0].datetime.date(0)
-        print(f'{dt.isoformat()} {txt}')
+        # print(f'{dt.isoformat()} {txt}')
