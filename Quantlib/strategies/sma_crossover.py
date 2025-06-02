@@ -12,6 +12,8 @@ class SMACrossover(BaseStrategy):
     )
 
     def setup_indicators(self):
+        # previous day's singal
+        self.prev_signal = 0
         self.sma1 = bt.indicators.SimpleMovingAverage(
             self.data.close, 
             period=self.params.short_period
@@ -23,7 +25,21 @@ class SMACrossover(BaseStrategy):
         self.crossover = bt.ind.CrossOver(self.sma1, self.sma2)
 
     def next(self):
+        # current day single
+        single = 0 
         if self.crossover > 0:
+            single = 1;
             self.execute_buy()
         elif self.crossover < 0:
+            single = 1;
             self.execute_sell()
+
+        if self.prev_signal == 1:
+            self.execute_buy()
+            
+        elif self.prev_signal == -1:
+            self.execute_buy()
+            
+
+
+        self.prev_signal = single

@@ -26,12 +26,28 @@ class BaseStrategy(bt.Strategy):
     def execute_buy(self):
         """Execute buy order with position sizing"""
         if not self.position:
-            self.buy(size=self.params.trade_size)
+            cash = self.broker.getcash()  # Get available cash
+            price = self.data.close[0]  # Current price
+            trade_cash = cash * self.params.trade_size  # Calculate cash to use for trade
+            
+            # Get commission info and calculate size accounting for commission
+            comminfo = self.broker.getcommissioninfo(self.data0)
+            commission_rate = comminfo.p.commission
+            
+            # Calculate position size accounting for commission
+            # For a commission rate r:
+            # size * price + size * price * r = trade_cash
+            # size * price * (1 + r) = trade_cash
+            # size = trade_cash / (price * (1 + r))
+            size = trade_cash / (price * (1 + commission_rate))
+            
+            self.buy(size=size)
 
     def execute_sell(self):
         """Execute sell order with position sizing"""
         if self.position:
-            self.sell(size=self.params.trade_size)
+            # Sell entire position
+            self.sell(size=self.position.size)
 
     def notify_order(self, order):
         """Handle order status updates"""
@@ -39,10 +55,23 @@ class BaseStrategy(bt.Strategy):
             return
         
         if order.status in [order.Completed]:
+            # Calculate portfolio value using current close price
+            cash = self.broker.getcash()
+            position_value = 0
             if order.isbuy():
-                self.log(f'BUY EXECUTED, {order.executed.price:.2f}')
-            elif order.issell():
-                self.log(f'SELL EXECUTED, {order.executed.price:.2f}')
+                # For buy orders, use the new position size
+                position_value = order.executed.size * self.data.close[0]
+               # self.log(f' calculation current day close price: {self.data.close[0]:.2f} | open price: {self.data.open[0]:.2f}')
+                 
+            else:
+                # For sell orders, position is already closed
+                position_value = 0
+            portfolio_value = cash + position_value
+            
+            if order.isbuy():
+                self.log(f'BUY EXECUTED at {order.executed.price:.2f} | Size: {order.executed.size:.6f} | Commission: ${order.executed.comm:.2f} | Portfolio Value: ${portfolio_value:.2f}')
+            else:
+                self.log(f'SELL EXECUTED at {order.executed.price:.2f} | Size: {order.executed.size:.6f} | Commission: ${order.executed.comm:.2f} | Portfolio Value: ${portfolio_value:.2f}')
         
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.log('Order Canceled/Margin/Rejected')
@@ -52,4 +81,4 @@ class BaseStrategy(bt.Strategy):
     def log(self, txt, dt=None):
         """Logging function"""
         dt = dt or self.datas[0].datetime.date(0)
-        # print(f'{dt.isoformat()} {txt}')
+        print(f'{dt.isoformat()} {txt}')
