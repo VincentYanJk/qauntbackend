@@ -6,6 +6,7 @@ from .metrics import PerformanceAnalyzer
 class SignalRecorder(bt.Analyzer):
     def __init__(self):
         self.trades = []
+        self.open_trade = None
         super().__init__()
 
     def notify_trade(self, trade):
@@ -17,6 +18,28 @@ class SignalRecorder(bt.Analyzer):
                 'pnl': trade.pnl,
                 'commission': trade.commission,
                 'pnlcomm': trade.pnlcomm
+            })
+        elif trade.isopen:
+            self.open_trade = trade
+
+    def stop(self):
+        # Handle open trades at the end of the backtest
+        if self.open_trade is not None and self.open_trade.size != 0:
+            # Calculate PnL for the open position using last close price
+            close_price = self.strategy.data.close[0]
+            size = self.open_trade.size
+            value = close_price * size
+            cost = self.open_trade.value
+            pnl = value - cost
+            commission = self.open_trade.commission
+            
+            self.trades.append({
+                'datetime': self.strategy.data.datetime.datetime(0),
+                'price': close_price,
+                'size': size,
+                'pnl': pnl,
+                'commission': commission,
+                'pnlcomm': pnl - commission
             })
 
     def get_analysis(self):
@@ -123,43 +146,52 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     trades_df = strat.analyzers.signals.get_analysis()
     
     if len(trades_df) > 0:
-        values = [cash + trades_df['pnlcomm'].cumsum().iloc[i] for i in range(len(trades_df))]
-        dates = trades_df['datetime'].tolist()
-        
-        if dates[0] == df['datetime'].iloc[0]:
-            equity_curve = pd.Series(values, index=dates)
+        # For buy-and-hold strategies, we need to handle the equity curve differently
+        if len(trades_df) == 1:  # Likely a buy-and-hold strategy
+            df.set_index('datetime', inplace=True)
+            position_size = trades_df['size'].iloc[0]
+            remaining_cash = cash - (trades_df['price'].iloc[0] * position_size) - trades_df['commission'].iloc[0]
+            
+            # Calculate equity curve
+            df['equity'] = df['close'] * position_size + remaining_cash
+            equity_curve = df['equity']
         else:
-            equity_curve = pd.Series(
-                [cash] + values,
-                index=[df['datetime'].iloc[0]] + dates
-            )
+            values = [cash + trades_df['pnlcomm'].cumsum().iloc[i] for i in range(len(trades_df))]
+            dates = trades_df['datetime'].tolist()
+            
+            if dates[0] == df['datetime'].iloc[0]:
+                equity_curve = pd.Series(values, index=dates)
+            else:
+                equity_curve = pd.Series(
+                    [cash] + values,
+                    index=[df['datetime'].iloc[0]] + dates
+                )
     else:
         equity_curve = pd.Series([cash], index=[df['datetime'].iloc[0]])
 
-    df.set_index('datetime', inplace=True)
+    df.set_index('datetime', inplace=True) if not df.index.name == 'datetime' else None
     df['equity'] = equity_curve.reindex(index=df.index).ffill()
     df['buy_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x > 0 else None)
     df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
 
-    # Calculate performance metrics
+    # Calculate performance metrics using PerformanceAnalyzer
     initial_value = cash
-    final_value = df['equity'].iloc[-1]
+    final_value = equity
     total_return = (final_value - initial_value) / initial_value
 
-    # Calculate Sharpe Ratio
+    # Get returns for Sharpe ratio calculation
     returns = df['equity'].pct_change().dropna()
-    sharpe_ratio = np.sqrt(252) * (returns.mean() / returns.std()) if len(returns) > 0 and returns.std() != 0 else 0
-
-    # Calculate Maximum Drawdown
-    cummax = df['equity'].cummax()
-    drawdown = (df['equity'] - cummax) / cummax
-    max_drawdown = drawdown.min()
+    
+    # Use PerformanceAnalyzer for calculations
+    analyzer = PerformanceAnalyzer()
+    sharpe_ratio = analyzer.sharpe_ratio(returns)  # Uses 365 days and 2% risk-free rate
+    max_drawdown = analyzer.max_drawdown(df['equity'])
 
     # Calculate trading statistics
     total_trades = len(trades_df)
     if total_trades > 0:
         profitable_trades = len(trades_df[trades_df['pnlcomm'] > 0])
-        win_rate = profitable_trades / total_trades
+        win_rate = profitable_trades / total_trades if total_trades > 1 else 1.0  # For buy-and-hold, count as 100% if profitable
         avg_won = trades_df[trades_df['pnlcomm'] > 0]['pnlcomm'].mean() if profitable_trades > 0 else 0
         avg_lost = trades_df[trades_df['pnlcomm'] < 0]['pnlcomm'].mean() if len(trades_df[trades_df['pnlcomm'] < 0]) > 0 else 0
         total_commission = trades_df['commission'].sum()
