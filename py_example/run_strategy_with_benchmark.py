@@ -67,15 +67,31 @@ relative_return = (performance_strategy.total_return - performance_benchmark.tot
 print(f"\n=== Relative Performance ===")
 print(f"Strategy vs Buy & Hold: {relative_return:.2%}")
 
+# Print some debug info
+print("\nBuy & Hold Equity Curve:")
+print(f"Min: ${df_benchmark['equity'].min():,.2f}")
+print(f"Max: ${df_benchmark['equity'].max():,.2f}")
+print(f"First: ${df_benchmark['equity'].iloc[0]:,.2f}")
+print(f"Last: ${df_benchmark['equity'].iloc[-1]:,.2f}")
+
+print("\nSMA Strategy Equity Curve:")
+print(f"Min: ${df_strategy['equity'].min():,.2f}")
+print(f"Max: ${df_strategy['equity'].max():,.2f}")
+print(f"First: ${df_strategy['equity'].iloc[0]:,.2f}")
+print(f"Last: ${df_strategy['equity'].iloc[-1]:,.2f}")
+df_benchmark.to_csv('data/benchmark_result.csv', index=False)
+df_strategy.to_csv('data/sma_result.csv', index=False)
 # Plot comparison of equity curves
 plt.figure(figsize=(12, 6))
-plt.plot(df_benchmark.index, df_benchmark['equity'], label='Buy & Hold', linewidth=2)
 plt.plot(df_strategy.index, df_strategy['equity'], label='SMA Strategy', linewidth=2)
+plt.plot(df_benchmark.index, df_benchmark['equity'], label='Buy & Hold', linewidth=2)
 plt.title('Strategy vs Buy & Hold Performance')
 plt.xlabel('Date')
 plt.ylabel('Portfolio Value ($)')
+plt.yscale('log')  # Use logarithmic scale for better visualization
 plt.legend()
 plt.grid(True)
+plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))  # Format y-axis labels as currency
 plt.show()
 
 # Save trade logs

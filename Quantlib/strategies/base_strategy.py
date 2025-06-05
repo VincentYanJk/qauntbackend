@@ -30,16 +30,19 @@ class BaseStrategy(bt.Strategy):
             price = self.data.close[0]  # Current price
             trade_cash = cash * self.params.trade_size  # Calculate cash to use for trade
             
-            # Get commission info and calculate size accounting for commission
+            # Get commission and slippage info
             comminfo = self.broker.getcommissioninfo(self.data0)
             commission_rate = comminfo.p.commission
+            slippage = self.broker.p.slip_perc if hasattr(self.broker.p, 'slip_perc') else 0
             
-            # Calculate position size accounting for commission
-            # For a commission rate r:
-            # size * price + size * price * r = trade_cash
+            # Calculate total cost rate (commission + slippage)
+            total_cost_rate = commission_rate + slippage
+            
+            # Calculate position size accounting for both commission and slippage
+            # For a total cost rate r:
             # size * price * (1 + r) = trade_cash
             # size = trade_cash / (price * (1 + r))
-            size = trade_cash / (price * (1 + commission_rate))
+            size = trade_cash / (price * (1 + total_cost_rate))
             
             self.buy(size=size)
 

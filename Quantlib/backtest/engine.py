@@ -11,9 +11,19 @@ class SignalRecorder(bt.Analyzer):
 
     def notify_trade(self, trade):
         if trade.isclosed:
+            # Get the trade datetime from the strategy
+            trade_datetime = self.strategy.datetime.datetime(0)
+            
+            # If this is a buy-and-hold strategy (only one trade), use the entry date
+            if len(self.trades) == 0 and trade.size > 0 and hasattr(self.strategy, 'entry_date'):  # First trade and it's a buy
+                trade_datetime = self.strategy.entry_date
+                trade_price = trade.price  # Use the actual trade price
+            else:
+                trade_price = trade.price
+            
             self.trades.append({
-                'datetime': self.strategy.data.datetime.datetime(0),
-                'price': trade.price,
+                'datetime': trade_datetime,
+                'price': trade_price,
                 'size': trade.size,
                 'pnl': trade.pnl,
                 'commission': trade.commission,
@@ -33,8 +43,15 @@ class SignalRecorder(bt.Analyzer):
             pnl = value - cost
             commission = self.open_trade.commission
             
+            # Get the trade datetime from the strategy
+            trade_datetime = self.strategy.datetime.datetime(0)
+            
+            # If this is a buy-and-hold strategy, use the entry date
+            if hasattr(self.strategy, 'entry_date'):
+                trade_datetime = self.strategy.entry_date
+            
             self.trades.append({
-                'datetime': self.strategy.data.datetime.datetime(0),
+                'datetime': trade_datetime,
                 'price': close_price,
                 'size': size,
                 'pnl': pnl,
@@ -149,23 +166,58 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
         # For buy-and-hold strategies, we need to handle the equity curve differently
         if len(trades_df) == 1:  # Likely a buy-and-hold strategy
             df.set_index('datetime', inplace=True)
-            position_size = trades_df['size'].iloc[0]
-            remaining_cash = cash - (trades_df['price'].iloc[0] * position_size) - trades_df['commission'].iloc[0]
             
-            # Calculate equity curve
-            df['equity'] = df['close'] * position_size + remaining_cash
+            # Get the trade details and ensure all values are float
+            position_size = float(trades_df['size'].iloc[0])  # Number of BTC
+            entry_date = pd.to_datetime(trades_df['datetime'].iloc[0])  # This should be 2014-12-02
+            entry_price = float(trades_df['price'].iloc[0])  # This should be $378.39
+            commission = float(trades_df['commission'].iloc[0])
+            
+            # Print debug info
+            print("\nBuy & Hold Debug Info:")
+            print(f"Position Size: {position_size}")
+            print(f"Entry Date: {entry_date}")
+            print(f"Entry Price: ${entry_price:,.2f}")
+            print(f"Commission: ${commission:,.2f}")
+            print(f"Initial Cost: ${entry_price * position_size + commission:,.2f}")
+            
+            # Create equity curve
+            df['equity'] = pd.Series(index=df.index, dtype=float)  # Initialize empty series with float type
+            
+            # Before entry date, equity is initial cash
+            df.loc[df.index < entry_date, 'equity'] = float(cash)
+            
+            # After entry date, equity is position value + remaining cash
+            mask = df.index >= entry_date
+            df.loc[mask, 'equity'] = df.loc[mask, 'close'].astype(float) * position_size
+            
+            # Print more debug info
+            # print("\nEquity Curve Sample:")
+            # print(df['equity'].head())
+            # print("\nEquity Curve Stats:")
+            # print(f"Min: ${df['equity'].min():,.2f}")
+            # print(f"Max: ${df['equity'].max():,.2f}")
+            # print(f"First: ${df['equity'].iloc[0]:,.2f}")
+            # print(f"Last: ${df['equity'].iloc[-1]:,.2f}")
+            # print(f"\nSample dates:")
+            # print(f"First date: {df.index[0]}")
+            # print(f"Entry date: {entry_date}")
+            # print(f"Last date: {df.index[-1]}")
+            
             equity_curve = df['equity']
         else:
-            values = [cash + trades_df['pnlcomm'].cumsum().iloc[i] for i in range(len(trades_df))]
-            dates = trades_df['datetime'].tolist()
+            # For regular strategies, calculate equity curve from trades
+            df.set_index('datetime', inplace=True)
+            df['equity'] = pd.Series(index=df.index)  # Initialize empty series
+            df['equity'] = float(cash)  # Start with initial cash
             
-            if dates[0] == df['datetime'].iloc[0]:
-                equity_curve = pd.Series(values, index=dates)
-            else:
-                equity_curve = pd.Series(
-                    [cash] + values,
-                    index=[df['datetime'].iloc[0]] + dates
-                )
+            # Process each trade sequentially
+            for i in range(len(trades_df)):
+                trade_date = pd.to_datetime(trades_df['datetime'].iloc[i])
+                trade_pnl = trades_df['pnlcomm'].iloc[i]
+                df.loc[df.index >= trade_date, 'equity'] = df.loc[df.index >= trade_date, 'equity'] + float(trade_pnl)
+            
+            equity_curve = df['equity']
     else:
         equity_curve = pd.Series([cash], index=[df['datetime'].iloc[0]])
 
@@ -175,8 +227,13 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
 
     # Calculate performance metrics using PerformanceAnalyzer
-    initial_value = cash
-    final_value = equity
+    if len(trades_df) == 1:  # For buy-and-hold strategy, get the actual final value
+        initial_value = cash
+        final_value = float(equity)  # Use the broker's final portfolio value
+    else:
+        initial_value = cash
+        final_value = df['equity'].iloc[-1]  # Use the last value from the equity curve
+    
     total_return = (final_value - initial_value) / initial_value
 
     # Get returns for Sharpe ratio calculation
@@ -192,7 +249,7 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     if total_trades > 0:
         profitable_trades = len(trades_df[trades_df['pnlcomm'] > 0])
         win_rate = profitable_trades / total_trades if total_trades > 1 else 1.0  # For buy-and-hold, count as 100% if profitable
-        avg_won = trades_df[trades_df['pnlcomm'] > 0]['pnlcomm'].mean() if profitable_trades > 0 else 0
+        avg_won = final_value - initial_value if total_trades == 1 else trades_df[trades_df['pnlcomm'] > 0]['pnlcomm'].mean()  # For buy-and-hold, use total profit
         avg_lost = trades_df[trades_df['pnlcomm'] < 0]['pnlcomm'].mean() if len(trades_df[trades_df['pnlcomm'] < 0]) > 0 else 0
         total_commission = trades_df['commission'].sum()
     else:
@@ -217,3 +274,32 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     })
 
     return df, trades_df, performance_summary
+
+def run_buy_and_hold(self, df, cash):
+    """Run a buy and hold strategy."""
+    trades = []
+    
+    # Place buy order on the first day
+    entry_price = df['close'].iloc[0]
+    position_size = (cash * 0.998) / entry_price  # Leave some cash for commission
+    commission = cash * 0.002  # 0.2% commission
+    
+    # Record the trade
+    trade = {
+        'datetime': df['datetime'].iloc[0],  # Use the first date
+        'price': entry_price,
+        'size': position_size,
+        'pnl': (df['close'].iloc[-1] - entry_price) * position_size,
+        'commission': commission,
+        'pnlcomm': (df['close'].iloc[-1] - entry_price) * position_size - commission
+    }
+    trades.append(trade)
+    
+    # Convert to DataFrame
+    trades_df = pd.DataFrame(trades)
+    
+    # Calculate final portfolio value
+    final_value = position_size * df['close'].iloc[-1] + (cash - position_size * entry_price - commission)
+    print(f"{df['datetime'].iloc[-1]} Buy and Hold Final Portfolio Value: ${final_value:.2f}")
+    
+    return trades_df

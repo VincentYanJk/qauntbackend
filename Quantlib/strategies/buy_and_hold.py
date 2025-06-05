@@ -20,6 +20,7 @@ class BuyAndHoldStrategy(BaseStrategy):
         super(BuyAndHoldStrategy, self).__init__()
         self.order = None  # Track pending orders
         self.bought = False  # Track if we've already bought
+        self.entry_date = None  # Track entry date
         
     def setup_indicators(self):
         # No indicators needed for buy and hold
@@ -38,11 +39,13 @@ class BuyAndHoldStrategy(BaseStrategy):
         if order.status in [order.Completed]:
             if order.isbuy():
                 self.bought = True
+                self.entry_date = self.data.datetime.datetime(0)  # Record entry date when order executes
                 self.log(f'BUY EXECUTED - Price: ${order.executed.price:.2f}, Size: {order.executed.size:.6f}, Cost: ${order.executed.value:.2f}, Comm: ${order.executed.comm:.2f}')
         
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.log('Order Failed')
             self.bought = False
+            self.entry_date = None  # Reset entry date if order fails
             
         self.order = None
             
