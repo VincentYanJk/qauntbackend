@@ -7,28 +7,55 @@ class SignalRecorder(bt.Analyzer):
     def __init__(self):
         self.trades = []
         self.open_trade = None
+        self.current_buy = None
         super().__init__()
+
+    def notify_order(self, order):
+        if order.status == order.Completed:
+            # Record trade details
+            trade_record = {
+                'datetime': self.strategy.datetime.datetime(0),
+                'price': order.executed.price,
+                'size': abs(order.executed.size),
+                'type': 'buy' if order.isbuy() else 'sell',
+                'commission': order.executed.comm
+            }
+            
+            if order.isbuy():
+                # Store buy trade details for P&L calculation
+                self.current_buy = trade_record
+            else:  # Sell order
+                if self.current_buy is not None:
+                    # Calculate P&L for the buy trade
+                    buy_value = self.current_buy['price'] * self.current_buy['size']
+                    sell_value = order.executed.price * abs(order.executed.size)
+                    pnl = sell_value - buy_value
+                    total_commission = self.current_buy['commission'] + order.executed.comm
+                    
+                    # Update buy trade with P&L info
+                    self.current_buy.update({
+                        'pnl': pnl,
+                        'commission': total_commission,
+                        'pnlcomm': pnl - total_commission
+                    })
+                    self.trades.append(self.current_buy)
+                    
+                    # Record sell trade
+                    trade_record.update({
+                        'pnl': pnl,
+                        'commission': total_commission,
+                        'pnlcomm': pnl - total_commission
+                    })
+                    self.trades.append(trade_record)
+                    
+                    # Reset current buy
+                    self.current_buy = None
 
     def notify_trade(self, trade):
         if trade.isclosed:
-            # Get the trade datetime from the strategy
-            trade_datetime = self.strategy.datetime.datetime(0)
-            
-            # If this is a buy-and-hold strategy (only one trade), use the entry date
-            if len(self.trades) == 0 and trade.size > 0 and hasattr(self.strategy, 'entry_date'):  # First trade and it's a buy
-                trade_datetime = self.strategy.entry_date
-                trade_price = trade.price  # Use the actual trade price
-            else:
-                trade_price = trade.price
-            
-            self.trades.append({
-                'datetime': trade_datetime,
-                'price': trade_price,
-                'size': trade.size,
-                'pnl': trade.pnl,
-                'commission': trade.commission,
-                'pnlcomm': trade.pnlcomm
-            })
+            # For buy-and-hold strategy handling
+            if len(self.trades) == 0 and hasattr(self.strategy, 'entry_date'):
+                self.trades[-1]['datetime'] = self.strategy.entry_date
         elif trade.isopen:
             self.open_trade = trade
 
@@ -37,7 +64,7 @@ class SignalRecorder(bt.Analyzer):
         if self.open_trade is not None and self.open_trade.size != 0:
             # Calculate PnL for the open position using last close price
             close_price = self.strategy.data.close[0]
-            size = self.open_trade.size
+            size = abs(self.open_trade.size)
             value = close_price * size
             cost = self.open_trade.value
             pnl = value - cost
@@ -56,12 +83,13 @@ class SignalRecorder(bt.Analyzer):
                 'size': size,
                 'pnl': pnl,
                 'commission': commission,
-                'pnlcomm': pnl - commission
+                'pnlcomm': pnl - commission,
+                'type': 'buy' if self.open_trade.size > 0 else 'sell'
             })
 
     def get_analysis(self):
         if not self.trades:
-            return pd.DataFrame(columns=['datetime', 'price', 'size', 'pnl', 'commission', 'pnlcomm'])
+            return pd.DataFrame(columns=['datetime', 'price', 'size', 'pnl', 'commission', 'pnlcomm', 'type'])
         return pd.DataFrame(self.trades)
 
 class PerformanceSummary:
@@ -113,7 +141,7 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     """
     df = pd.read_csv(data_path)
     df.columns = [col.strip().lower() for col in df.columns]
-    print(df.columns)
+    # print(df.columns)
     
     # Convert datetime column
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -161,7 +189,7 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
 
     equity = cerebro.broker.get_value()
     trades_df = strat.analyzers.signals.get_analysis()
-    
+    trades_df.to_csv('data/trades_df.csv')
     if len(trades_df) > 0:
         # For buy-and-hold strategies, we need to handle the equity curve differently
         if len(trades_df) == 1:  # Likely a buy-and-hold strategy
@@ -224,11 +252,19 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     df.set_index('datetime', inplace=True) if not df.index.name == 'datetime' else None
     df['equity'] = equity_curve.reindex(index=df.index).ffill()
     
-    # Generate signals using a single column with 1/-1/0 values
+    # Generate signals
     equity_diff = df['equity'].diff()
+    
+    # Standard signal column (1/-1/0)
     df['signal'] = 0  # Initialize with 0 (no signal)
     df.loc[equity_diff > 0, 'signal'] = 1  # Buy signal
     df.loc[equity_diff < 0, 'signal'] = -1  # Sell signal
+    
+    # Separate buy/sell columns for plotting
+    df['buy_signal'] = None  # Initialize with None
+    df['sell_signal'] = None  # Initialize with None
+    df.loc[df['signal'] == 1, 'buy_signal'] = df.loc[df['signal'] == 1, 'close']
+    df.loc[df['signal'] == -1, 'sell_signal'] = df.loc[df['signal'] == -1, 'close']
     
     # Store signal prices for reference
     df['signal_price'] = None  # Initialize price column
