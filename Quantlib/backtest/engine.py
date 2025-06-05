@@ -252,23 +252,39 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
     df.set_index('datetime', inplace=True) if not df.index.name == 'datetime' else None
     df['equity'] = equity_curve.reindex(index=df.index).ffill()
     
-    # Generate signals
-    equity_diff = df['equity'].diff()
+    # # Generate signals
+    # equity_diff = df['equity'].diff()
     
-    # Standard signal column (1/-1/0)
-    df['signal'] = 0  # Initialize with 0 (no signal)
-    df.loc[equity_diff > 0, 'signal'] = 1  # Buy signal
-    df.loc[equity_diff < 0, 'signal'] = -1  # Sell signal
+    # # Standard signal column (1/-1/0)
+    # df['signal'] = 0  # Initialize with 0 (no signal)
+    # df.loc[equity_diff > 0, 'signal'] = 1  # Buy signal
+    # df.loc[equity_diff < 0, 'signal'] = -1  # Sell signal
     
-    # Separate buy/sell columns for plotting
-    df['buy_signal'] = None  # Initialize with None
-    df['sell_signal'] = None  # Initialize with None
-    df.loc[df['signal'] == 1, 'buy_signal'] = df.loc[df['signal'] == 1, 'close']
-    df.loc[df['signal'] == -1, 'sell_signal'] = df.loc[df['signal'] == -1, 'close']
+    # # Separate buy/sell columns for plotting
+    # df['buy_signal'] = None  # Initialize with None
+    # df['sell_signal'] = None  # Initialize with None
+    # df.loc[df['signal'] == 1, 'buy_signal'] = df.loc[df['signal'] == 1, 'close']
+    # df.loc[df['signal'] == -1, 'sell_signal'] = df.loc[df['signal'] == -1, 'close']
     
-    # Store signal prices for reference
-    df['signal_price'] = None  # Initialize price column
-    df.loc[df['signal'] != 0, 'signal_price'] = df.loc[df['signal'] != 0, 'close']
+    # # Store signal prices for reference
+    # df['signal_price'] = None  # Initialize price column
+    # df.loc[df['signal'] != 0, 'signal_price'] = df.loc[df['signal'] != 0, 'close']
+
+    # 先生成 signal 列
+    trades_df['signal'] = trades_df['type'].map({'buy': 1, 'sell': -1})
+
+    # 把交易信号按时间合并到主行情表
+    df = df.merge(trades_df[['datetime', 'signal', 'price']], on='datetime', how='left', suffixes=('', '_trade'))
+
+    # 没信号的日期补0
+    df['signal'] = df['signal'].fillna(0)
+
+    # buy_signal/sell_signal 便于画图
+    df['buy_signal'] = df.apply(lambda row: row['close'] if row['signal'] == 1 else None, axis=1)
+    df['sell_signal'] = df.apply(lambda row: row['close'] if row['signal'] == -1 else None, axis=1)
+    df['signal_price'] = df['price'].where(df['signal'] != 0)
+
+
 
     # Calculate performance metrics using PerformanceAnalyzer
     if len(trades_df) == 1:  # For buy-and-hold strategy, get the actual final value

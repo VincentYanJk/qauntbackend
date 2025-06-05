@@ -25,21 +25,17 @@ class SMACrossover(BaseStrategy):
         self.crossover = bt.ind.CrossOver(self.sma1, self.sma2)
 
     def next(self):
+        if self.prev_signal == 1:
+            self.execute_buy()
+
+        elif self.prev_signal == -1:
+            self.execute_sell()
+            
         # current day single
         single = 0 
         if self.crossover > 0:
             single = 1;
-            self.execute_buy()
         elif self.crossover < 0:
-            single = 1;
-            self.execute_sell()
-
-        if self.prev_signal == 1:
-            self.execute_buy()
-            
-        elif self.prev_signal == -1:
-            self.execute_buy()
-            
-
-
+            single = -1;
+        
         self.prev_signal = single
