@@ -67,6 +67,10 @@ relative_return = (performance_strategy.total_return - performance_benchmark.tot
 print(f"\n=== Relative Performance ===")
 print(f"Strategy vs Buy & Hold: {relative_return:.2%}")
 
+# Save results to CSV files
+df_benchmark.to_csv('data/benchmark_result.csv', index=True)
+df_strategy.to_csv('data/sma_result.csv', index=True)
+
 # Print some debug info
 print("\nBuy & Hold Equity Curve:")
 print(f"Min: ${df_benchmark['equity'].min():,.2f}")

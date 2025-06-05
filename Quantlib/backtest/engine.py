@@ -223,8 +223,16 @@ def run_backtest(strategy_class, data_path, cash=100000, plot=False, kwargs=None
 
     df.set_index('datetime', inplace=True) if not df.index.name == 'datetime' else None
     df['equity'] = equity_curve.reindex(index=df.index).ffill()
-    df['buy_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x > 0 else None)
-    df['sell_signal'] = df['equity'].diff().apply(lambda x: df['close'] if x < 0 else None)
+    
+    # Generate signals using a single column with 1/-1/0 values
+    equity_diff = df['equity'].diff()
+    df['signal'] = 0  # Initialize with 0 (no signal)
+    df.loc[equity_diff > 0, 'signal'] = 1  # Buy signal
+    df.loc[equity_diff < 0, 'signal'] = -1  # Sell signal
+    
+    # Store signal prices for reference
+    df['signal_price'] = None  # Initialize price column
+    df.loc[df['signal'] != 0, 'signal_price'] = df.loc[df['signal'] != 0, 'close']
 
     # Calculate performance metrics using PerformanceAnalyzer
     if len(trades_df) == 1:  # For buy-and-hold strategy, get the actual final value
