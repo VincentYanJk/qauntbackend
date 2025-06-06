@@ -6,7 +6,7 @@ import backtrader as bt
 
 class SMACrossover(BaseStrategy):
     params = (
-        ('short_period', 10),
+        ('short_period', 15),
         ('long_period', 30),
         ('trade_size', 1.0),
     )
