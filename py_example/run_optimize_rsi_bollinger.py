@@ -129,6 +129,38 @@ print("\nBest Parameters by Win Rate:")
 best_winrate_idx = results_df['win_rate'].idxmax()
 print(results_df.iloc[best_winrate_idx])
 
+# Save optimization results to text file
+results_txt_path = os.path.join(save_dir, 'optimization_results.txt')
+with open(results_txt_path, 'w') as f:
+    f.write("Best Parameters by Total Return:\n")
+    f.write("---------------------------\n")
+    best_return = results_df.iloc[best_return_idx]
+    for key, value in best_return.items():
+        if key in ['total_return', 'max_drawdown', 'win_rate']:
+            f.write(f"{key:15}: {value:.6f}\n")
+        else:
+            f.write(f"{key:15}: {value:.6f}\n")
+    
+    f.write("\nBest Parameters by Sharpe Ratio:\n")
+    f.write("------------------------------\n")
+    best_sharpe = results_df.iloc[best_sharpe_idx]
+    for key, value in best_sharpe.items():
+        if key in ['total_return', 'max_drawdown', 'win_rate']:
+            f.write(f"{key:15}: {value:.6f}\n")
+        else:
+            f.write(f"{key:15}: {value:.6f}\n")
+    
+    f.write("\nBest Parameters by Win Rate:\n")
+    f.write("--------------------------\n")
+    best_winrate = results_df.iloc[best_winrate_idx]
+    for key, value in best_winrate.items():
+        if key in ['total_return', 'max_drawdown', 'win_rate']:
+            f.write(f"{key:15}: {value:.6f}\n")
+        else:
+            f.write(f"{key:15}: {value:.6f}\n")
+
+print(f"\nOptimization results have been saved to: {results_txt_path}")
+
 # Create heatmaps for different metrics
 def create_heatmap(data, metric, rsi_param='rsi_period', bb_param='bb_period'):
     pivot_table = data.pivot_table(
@@ -180,7 +212,6 @@ print("\nOptimization completed! Results and heatmaps saved in:", save_dir)
 # max_drawdown         0.000000
 # total_trades         3.000000
 # win_rate             1.000000
-# Name: 1502, dtype: float64
 
 # Best Parameters by Win Rate:
 # rsi_period        15.000000

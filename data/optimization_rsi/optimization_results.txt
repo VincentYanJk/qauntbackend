@@ -1,0 +1,29 @@
+Best Parameters by Total Return:
+---------------------------
+period         : 30.000000
+oversold       : 20.000000
+overbought     : 80.000000
+total_return   : 134.030877
+sharpe_ratio   : 80.511419
+max_drawdown   : 0.000000
+total_trades   : 3.000000
+
+Best Parameters by Sharpe Ratio:
+------------------------------
+period         : 30.000000
+oversold       : 20.000000
+overbought     : 60.000000
+total_return   : 133.146397
+sharpe_ratio   : 2283.016651
+max_drawdown   : 0.000000
+total_trades   : 3.000000
+
+Best Parameters by Max Drawdown:
+------------------------------
+period         : 5.000000
+oversold       : 35.000000
+overbought     : 65.000000
+total_return   : -0.485677
+sharpe_ratio   : -0.203703
+max_drawdown   : -1.046701
+total_trades   : 139.000000

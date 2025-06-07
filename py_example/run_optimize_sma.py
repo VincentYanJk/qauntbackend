@@ -130,7 +130,36 @@ for key, value in best_drawdown.items():
     if key in ['total_return', 'max_drawdown']:
         print(f"{key}: {value:.2%}")
     else:
-        print(f"{key}: {value:.2f}") 
+        print(f"{key}: {value:.2f}")
+
+# Save optimization results to text file
+results_txt_path = os.path.join(save_dir, 'optimization_results.txt')
+with open(results_txt_path, 'w') as f:
+    f.write("Best Parameters by Total Return:\n")
+    f.write("---------------------------\n")
+    for key, value in best_return.items():
+        if key in ['total_return', 'max_drawdown']:
+            f.write(f"{key:15}: {value:.6f}\n")
+        else:
+            f.write(f"{key:15}: {value:.6f}\n")
+    
+    f.write("\nBest Parameters by Sharpe Ratio:\n")
+    f.write("------------------------------\n")
+    for key, value in best_sharpe.items():
+        if key in ['total_return', 'max_drawdown']:
+            f.write(f"{key:15}: {value:.6f}\n")
+        else:
+            f.write(f"{key:15}: {value:.6f}\n")
+    
+    f.write("\nBest Parameters by Max Drawdown:\n")
+    f.write("------------------------------\n")
+    for key, value in best_drawdown.items():
+        if key in ['total_return', 'max_drawdown']:
+            f.write(f"{key:15}: {value:.6f}\n")
+        else:
+            f.write(f"{key:15}: {value:.6f}\n")
+
+print(f"\nOptimization results have been saved to: {results_txt_path}")
 
 print("\n=== Best Parameters by max_traders===")
 for key, value in max_traders.items():
