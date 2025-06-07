@@ -16,6 +16,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import product
 from tqdm import tqdm
+import os
+
+# Create directory for saving heatmaps if it doesn't exist
+save_dir = 'data/optimization_mfi'
+os.makedirs(save_dir, exist_ok=True)
 
 # Define commission and slippage settings
 commission_scheme = {
@@ -148,10 +153,10 @@ for metric in ['total_return', 'sharpe_ratio', 'max_drawdown']:
             plt.ylabel('Oversold Level')
             
             # Save the plot
-            plt.savefig(f'mfi_{metric}_period_{period}_heatmap.png', bbox_inches='tight', dpi=300)
+            plt.savefig(os.path.join(save_dir, f'mfi_{metric}_period_{period}_heatmap.png'), bbox_inches='tight', dpi=300)
             plt.close()
 
-print("Heatmaps have been saved as PNG files.")
+print(f"Heatmaps have been saved in {save_dir} directory.")
 
 # Run final backtest with best Sharpe parameters and generate plots
 df, trades_df, performance = run_backtest(

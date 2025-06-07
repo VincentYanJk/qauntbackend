@@ -16,6 +16,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import product
 from tqdm import tqdm
+import os
+
+# Create directory for saving results if it doesn't exist
+save_dir = 'data/optimization_sma'
+os.makedirs(save_dir, exist_ok=True)
 
 # Define commission and slippage settings
 commission_scheme = {
@@ -84,6 +89,9 @@ progress_bar.close()
 # Convert results to DataFrame
 results_df = pd.DataFrame(results)
 
+# Save optimization results to CSV
+results_df.to_csv(os.path.join(save_dir, 'sma_optimization_results.csv'), index=False)
+
 # Create heatmaps for each metric
 for metric in ['total_return', 'sharpe_ratio', 'max_drawdown']:
     plt.figure(figsize=(12,8))
@@ -91,8 +99,10 @@ for metric in ['total_return', 'sharpe_ratio', 'max_drawdown']:
     fmt = '.2%' if metric in ['total_return', 'max_drawdown'] else '.2f'
     sns.heatmap(pivot, annot=True, fmt=fmt, cmap='RdYlGn', center=0)
     plt.title(f'{metric.replace("_", " ").title()} by SMA Parameters')
-    plt.savefig(f'{metric}_heatmap.png')
+    plt.savefig(os.path.join(save_dir, f'sma_{metric}_heatmap.png'), bbox_inches='tight', dpi=300)
     plt.close()
+
+print(f"\nResults and heatmaps have been saved in {save_dir} directory.")
 
 # Find best parameters by different metrics
 best_return = results_df.loc[results_df['total_return'].idxmax()]
