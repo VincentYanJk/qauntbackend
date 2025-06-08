@@ -167,3 +167,28 @@ for key, value in max_traders.items():
         print(f"{key}: {value:.2%}")
     else:
         print(f"{key}: {value:.2f}") 
+
+
+# Run final backtest with best Sharpe parameters and generate plots
+df, trades_df, performance = run_backtest(
+    strategy_class=SMACrossover,
+    data_path="data/BTC-Daily.csv",
+    cash=100000,
+    plot=True,
+    kwargs={
+        'trade_size': 0.5,
+        'commission_scheme': commission_scheme,
+        'slippage_scheme': slippage_scheme,
+        'short_period': int(best_sharpe['short_period']),
+        'long_period': int(best_sharpe['long_period']),
+    }
+)
+
+# Print all performance metrics for best parameters
+print("\nDetailed Performance for Best Sharpe Parameters:")
+performance.print_all()
+
+# Generate plots
+plot_equity_curve(df["equity"])
+plot_drawdown(df["equity"])
+plot_signals(df, df.get("buy_signal"), df.get("sell_signal")) 

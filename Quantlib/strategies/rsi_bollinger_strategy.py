@@ -7,11 +7,11 @@ from Quantlib.indicators.bollinger import BollingerBands
 
 class RSIBollingerStrategy(BaseStrategy):
     params = (
-        ('rsi_period', 14),  # RSI period
-        ('rsi_oversold', 30),  # RSI oversold threshold
-        ('rsi_overbought', 70),  # RSI overbought threshold
-        ('bb_period', 20),  # Bollinger Bands period
-        ('bb_devfactor', 2.0),  # Number of standard deviations
+        ('rsi_period', 20),  # RSI period
+        ('rsi_oversold', 20),  # RSI oversold threshold
+        ('rsi_overbought', 60),  # RSI overbought threshold
+        ('bb_period', 10),  # Bollinger Bands period
+        ('bb_devfactor', 2.5),  # Number of standard deviations
         ('trade_size', 1.0),  # Position size
     )
 

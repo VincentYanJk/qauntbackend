@@ -1,0 +1,26 @@
+Best Parameters by Total Return:
+---------------------------
+short_period   : 5.000000
+long_period    : 100.000000
+total_return   : 85.411456
+sharpe_ratio   : 1.209616
+max_drawdown   : -0.219687
+total_trades   : 41.000000
+
+Best Parameters by Sharpe Ratio:
+------------------------------
+short_period   : 15.000000
+long_period    : 30.000000
+total_return   : 49.591575
+sharpe_ratio   : 1.782221
+max_drawdown   : -0.213290
+total_trades   : 85.000000
+
+Best Parameters by Max Drawdown:
+------------------------------
+short_period   : 10.000000
+long_period    : 50.000000
+total_return   : 36.056738
+sharpe_ratio   : 1.527519
+max_drawdown   : -0.369457
+total_trades   : 59.000000

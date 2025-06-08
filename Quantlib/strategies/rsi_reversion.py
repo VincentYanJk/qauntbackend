@@ -6,9 +6,9 @@ from Quantlib.indicators.rsi import RSI
 
 class RSIReversion(BaseStrategy):
     params = (
-        ('period', 14),
-        ('oversold', 30),
-        ('overbought', 70),
+        ('period', 30),
+        ('oversold', 20),
+        ('overbought', 60),
         ('trade_size', 1.0)
     )
 

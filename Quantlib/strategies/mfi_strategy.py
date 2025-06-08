@@ -12,9 +12,9 @@ class MFIStrategy(BaseStrategy):
     - Sell when MFI crosses below overbought level (indicating potential reversal down)
     """
     params = (
-        ('period', 14),  # MFI period
-        ('oversold', 20),  # Oversold threshold
-        ('overbought', 80),  # Overbought threshold
+        ('period', 5),  # MFI period
+        ('oversold', 30),  # Oversold threshold
+        ('overbought', 60),  # Overbought threshold
         ('trade_size', 1.0),  # Position size
     )
 
