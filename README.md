@@ -91,5 +91,12 @@ executor = TradeExecutor(mode="live", broker="binance")
 - In VS Code, use `.vscode/launch.json` to ensure cwd is set to project root
 
 ---
+Set proxy for local to check in code when connecting VPN
+git config --global http.proxy 'http://127.0.0.1:7890'
+git config --global https.proxy 'http://127.0.0.1:7890'
+
+unset:
+git config --global --unset http.proxy
+git config --global --unset https.proxy
 
 MIT License • Developed by GPT + BTC Strategists
