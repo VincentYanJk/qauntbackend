@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sys
 import os
+import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 def plot_equity_curve(equity_series):
@@ -56,6 +57,41 @@ def plot_signals(data, buy_signals=None, sell_signals=None):
     plt.ylabel("Price")
     plt.legend()
     plt.grid()
+    plt.show()
+
+def plot_trade_returns(trades_df):
+    """
+    Plot the distribution of trade returns with color-coded points.
+    
+    Parameters:
+    -----------
+    trades_df : pandas.DataFrame
+        DataFrame containing trade information with pnlcomm column
+        showing the profit/loss after commission for each trade
+    """
+    # Get unique trades by filtering only buy signals (to avoid counting both entry and exit)
+    buy_trades = trades_df[trades_df['type'] == 'buy']
+    
+    # Use pnlcomm for returns as it includes commission
+    returns = buy_trades['pnlcomm'].values
+    n = len(returns)
+    
+    plt.figure(figsize=(10, 5))
+    plt.scatter(range(n), returns, c=returns, cmap='RdYlGn', s=80, edgecolor='k')
+    plt.axhline(0, color='gray', linestyle='--', lw=1)
+    plt.title('Trade Return Distribution')
+    plt.xlabel('Trade Number')
+    plt.ylabel('Profit/Loss after Commission')
+    plt.colorbar(label='P&L')
+    
+    # Add summary statistics
+    avg_return = returns.mean()
+    win_rate = (returns > 0).mean() * 100
+    plt.text(0.02, 0.95, f'Average P&L: ${avg_return:.2f}\nWin Rate: {win_rate:.1f}%', 
+             transform=plt.gca().transAxes, 
+             bbox=dict(facecolor='white', alpha=0.8))
+    
+    plt.grid(True, alpha=0.3)
     plt.show()
 
 def save_trade_log(trades, output_path="trades_log.csv"):

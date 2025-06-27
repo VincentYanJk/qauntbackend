@@ -5,6 +5,7 @@ from Quantlib.visualization.visualize import (
     plot_equity_curve,
     plot_drawdown,
     plot_signals,
+    plot_trade_returns,
     save_trade_log
 )
 
@@ -55,5 +56,8 @@ plot_drawdown(df["equity"])
 print("finish-finish----3")
 plot_signals(df, df.get("buy_signal"), df.get("sell_signal"))
 print("finish-finish----4")
-save_trade_log(trades_df)
+# Add trade returns distribution plot
+plot_trade_returns(trades_df)
 print("finish-finish----5")
+save_trade_log(trades_df)
+print("finish-finish----6")

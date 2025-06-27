@@ -5,37 +5,37 @@ from Quantlib.visualization.visualize import (
     plot_equity_curve,
     plot_drawdown,
     plot_signals,
+    plot_trade_returns,
     save_trade_log
 )
 
-from Quantlib.strategies.bollinger_band import BollingerBand
+from Quantlib.strategies.bollinger_strategy import BollingerStrategy
 from Quantlib.backtest.engine import run_backtest
 
 # Define commission and slippage settings
 commission_scheme = {
-    'commission': 0.002,  # 0.2% trading fee
+    'commission': 0.002,  # 0.2% trading fee (typical for crypto exchanges)
     'margin': None,  # No margin trading
     'mult': 1.0,  # No leverage
 }
 
 # Define slippage settings
 slippage_scheme = {
-    'slip_perc': 0.001,  # 0.1% slippage
+    'slip_perc': 0.001,  # 0.1% slippage (conservative estimate)
     'slip_fixed': 0.0,  # No fixed slippage
     'slip_open': True,  # Apply slippage on open orders
 }
 
-# Run backtest
-print("\nRunning Bollinger Bands backtest...")
+# Run backtest with Bollinger strategy
 df, trades_df, performance = run_backtest(
-    strategy_class=BollingerBand,
+    strategy_class=BollingerStrategy,
     data_path="data/BTC-Daily.csv",
     cash=100000,
     plot=True,
     kwargs={
-        'period': 20,  # Bollinger Bands period
-        'devfactor': 2.0,  # Number of standard deviations
         'trade_size': 0.5,  # Use 50% of portfolio per trade
+        'period': 20,  # Bollinger period
+        'std_dev': 2,  # Number of standard deviations
         'commission_scheme': commission_scheme,
         'slippage_scheme': slippage_scheme
     }
@@ -48,4 +48,5 @@ performance.print_all()
 plot_equity_curve(df["equity"])
 plot_drawdown(df["equity"])
 plot_signals(df, df.get("buy_signal"), df.get("sell_signal"))
+plot_trade_returns(trades_df)
 save_trade_log(trades_df) 
