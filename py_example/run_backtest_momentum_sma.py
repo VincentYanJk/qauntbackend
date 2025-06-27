@@ -9,7 +9,7 @@ from Quantlib.visualization.visualize import (
     save_trade_log
 )
 
-from Quantlib.strategies.momentum_sma import MomentumSMA
+from Quantlib.strategies.momentum_sma_strategy import MomentumSMAStrategy
 from Quantlib.backtest.engine import run_backtest
 
 # Define commission and slippage settings
@@ -28,15 +28,14 @@ slippage_scheme = {
 
 # Run backtest with Momentum SMA strategy
 df, trades_df, performance = run_backtest(
-    strategy_class=MomentumSMA,
+    strategy_class=MomentumSMAStrategy,
     data_path="data/BTC-Daily.csv",
     cash=100000,
     plot=True,
     kwargs={
         'trade_size': 0.5,  # Use 50% of portfolio per trade
-        'momentum_period': 10,  # Momentum lookback period
-        'sma_short': 10,  # Short SMA period
-        'sma_long': 30,  # Long SMA period
+        'momentum_period': 5,  # 5-day momentum
+        'sma_period': 20,  # 20-day SMA
         'commission_scheme': commission_scheme,
         'slippage_scheme': slippage_scheme
     }
