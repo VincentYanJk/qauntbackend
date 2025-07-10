@@ -11,7 +11,7 @@ from sklearn.metrics import classification_report
 from .features import generate_features
 from .factory import create_model
 
-def train_model(df_path, model_type="xgboost", save_path=None, features=None, **model_kwargs):
+def train_model(df_path, model_type="xgboost", save_path=None, features=None, return_threshold=0.01, **model_kwargs):
     """
     Train any supported model type with configurable features and parameters
     
@@ -20,6 +20,7 @@ def train_model(df_path, model_type="xgboost", save_path=None, features=None, **
         model_type: Type of model to train ("xgboost", "lstm", etc)
         save_path: Where to save the model (default: models/{model_type}_model.{ext})
         features: List of features to use (default: basic feature set)
+        return_threshold: Minimum return threshold to consider as positive (default: 1%)
         **model_kwargs: Additional model parameters
     """
     # Set default save path if not provided
@@ -30,7 +31,10 @@ def train_model(df_path, model_type="xgboost", save_path=None, features=None, **
     # Read and preprocess data
     df = pd.read_csv(df_path, parse_dates=["datetime"])
     df = generate_features(df)
-    df["target"] = (df["close"].shift(-1) > df["close"]).astype(int)
+    
+    # Calculate 3-day returns and create target based on threshold
+    df['return_3d'] = (df['close'].shift(-3) - df['close']) / df['close']
+    df["target"] = (df['return_3d'] > return_threshold).astype(int)
 
     # Use provided features or default set
     features = features or ["return_1", "sma_ratio", "volatility"]
