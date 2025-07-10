@@ -4,11 +4,63 @@ Machine Learning based trading strategy
 import backtrader as bt
 import numpy as np
 import pandas as pd
+from typing import Dict, Any, List
+
+def generate_features_for_backtest(df: pd.DataFrame, feature_config: Dict[str, Any] = None) -> pd.DataFrame:
+    """Simplified feature generator for backtesting"""
+    if feature_config is None:
+        feature_config = {
+            'returns': {'periods': [1, 5, 10]},
+            'sma': {'periods': [10, 30, 50]},
+            'volatility': {'periods': [10, 30]},
+            'rsi': {'periods': [14, 28]},
+            'volume': {'periods': [5, 10, 20]}
+        }
+    
+    df = df.copy()
+    
+    # Returns
+    for period in feature_config.get('returns', {}).get('periods', []):
+        df[f'return_{period}'] = df['close'].pct_change(period)
+    
+    # SMAs and ratios
+    sma_periods = feature_config.get('sma', {}).get('periods', [])
+    for period in sma_periods:
+        df[f'sma_{period}'] = df['close'].rolling(window=period).mean()
+    for i in range(len(sma_periods)-1):
+        short_period = sma_periods[i]
+        long_period = sma_periods[i+1]
+        df[f'sma_ratio_{short_period}_{long_period}'] = (
+            df[f'sma_{short_period}'] / df[f'sma_{long_period}']
+        )
+    
+    # Volatility
+    for period in feature_config.get('volatility', {}).get('periods', []):
+        df[f'volatility_{period}'] = df['return_1'].rolling(window=period).std()
+    
+    # RSI
+    for period in feature_config.get('rsi', {}).get('periods', []):
+        delta = df['close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        df[f'rsi_{period}'] = 100 - (100 / (1 + rs))
+    
+    # Volume
+    volume_col = 'Volume' if 'Volume' in df.columns else 'volume'
+    if volume_col in df.columns:
+        for period in feature_config.get('volume', {}).get('periods', []):
+            df[f'volume_sma_{period}'] = df[volume_col].rolling(window=period).mean()
+            df[f'volume_ratio_{period}'] = df[volume_col] / df[f'volume_sma_{period}']
+    
+    return df
 
 class MLSignalStrategy(bt.Strategy):
     params = (
         ('model', None),  # ML model instance
         ('features', ['return_1', 'sma_ratio', 'volatility']),  # Features to use for prediction
+        ('feature_config', None),  # Feature generation configuration
+        ('lookback', 50),  # Number of bars to look back for feature calculation
     )
 
     def __init__(self):
@@ -23,7 +75,7 @@ class MLSignalStrategy(bt.Strategy):
         print("Strategy initialized with features:", self.params.features)
 
     def next(self):
-        if len(self) < 2:  # Need at least 2 data points
+        if len(self) < self.params.lookback:  # Need enough data for feature calculation
             return
             
         # Don't trade if we have a pending order
@@ -32,6 +84,8 @@ class MLSignalStrategy(bt.Strategy):
 
         # Get the current market data
         data = self._prepare_data()
+        if data is None:
+            return
         
         # Get prediction from model
         try:
@@ -47,27 +101,29 @@ class MLSignalStrategy(bt.Strategy):
             print(f"Prediction error: {e}")
         
     def _prepare_data(self):
-        # Basic feature preparation
-        data = {}
-        
-        # Calculate return
-        close = self.data_close[0]
-        close_prev = self.data_close[-1]
-        data['return_1'] = (close - close_prev) / close_prev
+        try:
+            # Prepare historical data for feature calculation
+            hist_data = {
+                'datetime': pd.Series([self.datas[0].datetime.datetime(-i) for i in range(self.params.lookback-1, -1, -1)]),
+                'open': pd.Series([self.datas[0].open[-i] for i in range(self.params.lookback-1, -1, -1)]),
+                'high': pd.Series([self.datas[0].high[-i] for i in range(self.params.lookback-1, -1, -1)]),
+                'low': pd.Series([self.datas[0].low[-i] for i in range(self.params.lookback-1, -1, -1)]),
+                'close': pd.Series([self.datas[0].close[-i] for i in range(self.params.lookback-1, -1, -1)]),
+                'Volume': pd.Series([self.datas[0].volume[-i] for i in range(self.params.lookback-1, -1, -1)])
+            }
+            df = pd.DataFrame(hist_data)
             
-        # Calculate SMA ratio
-        sma_10 = np.mean([self.data_close[-i] for i in range(10)])
-        sma_30 = np.mean([self.data_close[-i] for i in range(30)])
-        data['sma_ratio'] = sma_10 / sma_30
+            # Generate features using our feature generator
+            df = generate_features_for_backtest(df, self.params.feature_config)
             
-        # Calculate volatility
-        prices = [self.data_close[-i] for i in range(10)]
-        data['volatility'] = np.std(prices)
+            # Get the last row (current bar) and select only the required features
+            current_features = df.iloc[-1:][self.params.features]
+            print(f"Features for prediction: {current_features.to_dict('records')[0]}")
+            return current_features
             
-        # Convert to DataFrame with a single row
-        df = pd.DataFrame([data])
-        print(f"Features for prediction: {df.to_dict('records')[0]}")
-        return df
+        except Exception as e:
+            print(f"Error preparing data: {e}")
+            return None
         
     def _execute_trades(self, signal):
         # More aggressive trading logic
