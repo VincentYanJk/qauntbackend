@@ -89,7 +89,12 @@ df, trades_df, performance = run_backtest(
     kwargs={
         'model': model,
         'features': selected_features,
-        'feature_config': feature_config
+        'feature_config': feature_config,
+        'commission_scheme': {
+            'commission': 0.002,  # 0.2% commission per trade
+            'margin': False,
+            'mult': 1.0
+        }
     }
 )
 
