@@ -31,6 +31,10 @@ class FeatureGenerator:
     @staticmethod
     def volatility(df: pd.DataFrame, periods: List[int] = [10, 30]) -> pd.DataFrame:
         """Calculate volatility over multiple periods"""
+        # First calculate returns if not already present
+        if 'return_1' not in df.columns:
+            df['return_1'] = df['close'].pct_change()
+            
         for period in periods:
             df[f'volatility_{period}'] = df['return_1'].rolling(window=period).std()
         return df
@@ -49,14 +53,55 @@ class FeatureGenerator:
     @staticmethod
     def volume_features(df: pd.DataFrame, periods: List[int] = [5, 10, 20]) -> pd.DataFrame:
         """Calculate volume-based features"""
-        # Handle both 'Volume' and 'volume' column names
-        volume_col = 'Volume' if 'Volume' in df.columns else 'volume'
-        if volume_col not in df.columns:
-            raise ValueError("No volume column found in data (tried both 'Volume' and 'volume')")
-            
         for period in periods:
-            df[f'volume_sma_{period}'] = df[volume_col].rolling(window=period).mean()
-            df[f'volume_ratio_{period}'] = df[volume_col] / df[f'volume_sma_{period}']
+            df[f'volume_sma_{period}'] = df['volume'].rolling(window=period).mean()
+            df[f'volume_ratio_{period}'] = df['volume'] / df[f'volume_sma_{period}']
+        return df
+
+    @staticmethod
+    def mfi(df: pd.DataFrame, periods: List[int] = [14], overbought: float = 80.0, oversold: float = 20.0) -> pd.DataFrame:
+        """Calculate Money Flow Index and signals for multiple periods
+        
+        Args:
+            df: DataFrame with OHLCV data
+            periods: List of periods to calculate MFI for
+            overbought: Threshold above which asset is considered overbought (default: 80)
+            oversold: Threshold below which asset is considered oversold (default: 20)
+            
+        Returns:
+            DataFrame with MFI values and signals added
+        """
+        df = df.copy()
+        
+        for period in periods:
+            # Calculate typical price
+            typical_price = (df['high'] + df['low'] + df['close']) / 3
+            
+            # Get the raw money flow
+            raw_money_flow = typical_price * df['volume']
+            
+            # Get the money flow direction
+            price_change = typical_price.diff()
+            positive_flow = raw_money_flow.where(price_change > 0, 0)
+            negative_flow = raw_money_flow.where(price_change < 0, 0)
+            
+            # Calculate the money flow ratio
+            positive_flow_sum = positive_flow.rolling(window=period).sum()
+            negative_flow_sum = negative_flow.rolling(window=period).sum()
+            money_flow_ratio = positive_flow_sum / negative_flow_sum
+            
+            # Calculate MFI
+            mfi = 100 - (100 / (1 + money_flow_ratio))
+            df[f'mfi_{period}'] = mfi
+            
+            # Generate overbought/oversold signals
+            df[f'mfi_{period}_overbought'] = (mfi > overbought).astype(int)
+            df[f'mfi_{period}_oversold'] = (mfi < oversold).astype(int)
+            
+            # Generate signal changes (1 for entering signal, -1 for exiting signal)
+            df[f'mfi_{period}_overbought_change'] = df[f'mfi_{period}_overbought'].diff()
+            df[f'mfi_{period}_oversold_change'] = df[f'mfi_{period}_oversold'].diff()
+            
         return df
 
 def generate_features(df: pd.DataFrame, feature_config: Dict[str, Any] = None) -> pd.DataFrame:
@@ -77,7 +122,12 @@ def generate_features(df: pd.DataFrame, feature_config: Dict[str, Any] = None) -
             'sma': {'periods': [10, 30, 50]},
             'volatility': {'periods': [10, 30]},
             'rsi': {'periods': [14, 28]},
-            'volume': {'periods': [5, 10, 20]}
+            'volume': {'periods': [5, 10, 20]},
+            'mfi': {
+                'periods': [14],
+                'overbought': 80.0,
+                'oversold': 20.0
+            }
         }
     
     df = df.copy()
@@ -95,6 +145,13 @@ def generate_features(df: pd.DataFrame, feature_config: Dict[str, Any] = None) -
             df = generator.rsi(df, params.get('periods', [14, 28]))
         elif feature_type == 'volume':
             df = generator.volume_features(df, params.get('periods', [5, 10, 20]))
+        elif feature_type == 'mfi':
+            df = generator.mfi(
+                df, 
+                params.get('periods', [14]),
+                params.get('overbought', 80.0),
+                params.get('oversold', 20.0)
+            )
     
     df.dropna(inplace=True)
     return df
@@ -107,7 +164,12 @@ def list_available_features(feature_config: Dict[str, Any] = None) -> List[str]:
             'sma': {'periods': [10, 30, 50]},
             'volatility': {'periods': [10, 30]},
             'rsi': {'periods': [14, 28]},
-            'volume': {'periods': [5, 10, 20]}
+            'volume': {'periods': [5, 10, 20]},
+            'mfi': {
+                'periods': [14],
+                'overbought': 80.0,
+                'oversold': 20.0
+            }
         }
     
     features = []
@@ -135,5 +197,13 @@ def list_available_features(feature_config: Dict[str, Any] = None) -> List[str]:
     for period in feature_config.get('volume', {}).get('periods', []):
         features.append(f'volume_sma_{period}')
         features.append(f'volume_ratio_{period}')
+    
+    # MFI
+    for period in feature_config.get('mfi', {}).get('periods', []):
+        features.append(f'mfi_{period}')
+        features.append(f'mfi_{period}_overbought')
+        features.append(f'mfi_{period}_oversold')
+        features.append(f'mfi_{period}_overbought_change')
+        features.append(f'mfi_{period}_oversold_change')
     
     return features

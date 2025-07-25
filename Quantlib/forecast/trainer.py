@@ -30,6 +30,9 @@ def train_model(df_path, model_type="xgboost", save_path=None, features=None, re
 
     # Read and preprocess data
     df = pd.read_csv(df_path, parse_dates=["datetime"])
+    df.columns = [col.strip().lower() for col in df.columns]
+    df['datetime'] = pd.to_datetime(df['datetime'])
+    df = df.sort_values(by="datetime")
     df = generate_features(df)
     
     # Calculate 3-day returns and create target based on threshold
