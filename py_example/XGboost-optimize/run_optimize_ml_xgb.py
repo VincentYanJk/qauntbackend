@@ -24,6 +24,43 @@ MODEL_TYPE = "xgboost"
 MODEL_PATH = f"models/{MODEL_TYPE}_model.pkl"
 
 # First train the model
+print("\nTraining XGBoost model...")
+
+# Define feature configuration
+feature_config = {
+    'returns': {'periods': [1, 5, 10]},      # Multiple return periods
+    'sma': {'periods': [10, 30, 50]},        # Multiple SMA periods
+    'volatility': {'periods': [10, 30]},      # Multiple volatility periods
+    'rsi': {'periods': [14, 28]},            # Multiple RSI periods
+    'volume': {'periods': [5, 10, 20]},      # Volume features
+    'momentum': {'periods': [5]},            # Momentum feature
+    'mfi': {
+        'periods': [14],
+        'overbought': 80.0,
+        'oversold': 20.0
+    }
+}
+
+# Get list of all features that will be generated
+available_features = list_available_features(feature_config)
+print("\nAvailable Features:")
+for feature in available_features:
+    print(f"- {feature}")
+
+# Select features to use
+selected_features = [
+    'return_1', 'return_5',                  # Short and medium-term returns
+    'sma_ratio_10_30', 'sma_ratio_30_50',   # SMA ratios
+    'volatility_10',                         # Short-term volatility
+    'rsi_14',                                # Standard RSI
+    'volume_ratio_5',                        # Short-term volume trend
+    'momentum_5'                             # Price momentum
+]
+
+print("\nSelected Features:")
+for feature in selected_features:
+    print(f"- {feature}")
+
 print("\nTraining XGBoost models with different numbers of boosting rounds...")
 
 for n_rounds in [50, 100, 200]:
