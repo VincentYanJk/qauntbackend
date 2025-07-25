@@ -13,9 +13,10 @@ class XGBoostModel(BaseModel):
             'random_state': 42,
             'max_depth': kwargs.get('max_depth', 3),
             'learning_rate': kwargs.get('learning_rate', 0.1),
-            'n_estimators': kwargs.get('n_estimators', 100),
             **kwargs
         }
+        # Store n_estimators separately as it's not a model parameter but a training parameter
+        self.n_estimators = kwargs.get('n_estimators', 100)
         self.model = None
         self.feature_names = None
         
@@ -30,7 +31,11 @@ class XGBoostModel(BaseModel):
         """
         self.feature_names = list(X_train.columns)
         dtrain = xgb.DMatrix(X_train, label=y_train, feature_names=self.feature_names)
-        self.model = xgb.train(self.params, dtrain)
+        self.model = xgb.train(
+            self.params, 
+            dtrain,
+            num_boost_round=self.n_estimators
+        )
         return self
         
     def predict(self, X: pd.DataFrame, **kwargs) -> np.ndarray:

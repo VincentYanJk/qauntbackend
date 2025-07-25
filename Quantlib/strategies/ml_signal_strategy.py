@@ -14,7 +14,8 @@ def generate_features_for_backtest(df: pd.DataFrame, feature_config: Dict[str, A
             'sma': {'periods': [10, 30, 50]},
             'volatility': {'periods': [10, 30]},
             'rsi': {'periods': [14, 28]},
-            'volume': {'periods': [5, 10, 20]}
+            'volume': {'periods': [5, 10, 20]},
+            'momentum': {'periods': [5]}
         }
     
     df = df.copy()
@@ -52,6 +53,10 @@ def generate_features_for_backtest(df: pd.DataFrame, feature_config: Dict[str, A
         for period in feature_config.get('volume', {}).get('periods', []):
             df[f'volume_sma_{period}'] = df[volume_col].rolling(window=period).mean()
             df[f'volume_ratio_{period}'] = df[volume_col] / df[f'volume_sma_{period}']
+    
+    # Momentum
+    for period in feature_config.get('momentum', {}).get('periods', []):
+        df[f'momentum_{period}'] = df['close'] - df['close'].shift(period)
     
     return df
 

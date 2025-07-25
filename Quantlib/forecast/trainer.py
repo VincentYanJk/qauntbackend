@@ -11,7 +11,7 @@ from sklearn.metrics import classification_report
 from .features import generate_features
 from .factory import create_model
 
-def train_model(df_path, model_type="xgboost", save_path=None, features=None, return_threshold=0.01, **model_kwargs):
+def train_model(df_path, model_type="xgboost", save_path=None, features=None, return_threshold=0.01, feature_config=None, **model_kwargs):
     """
     Train any supported model type with configurable features and parameters
     
@@ -21,6 +21,7 @@ def train_model(df_path, model_type="xgboost", save_path=None, features=None, re
         save_path: Where to save the model (default: models/{model_type}_model.{ext})
         features: List of features to use (default: basic feature set)
         return_threshold: Minimum return threshold to consider as positive (default: 1%)
+        feature_config: Configuration for feature generation
         **model_kwargs: Additional model parameters
     """
     # Set default save path if not provided
@@ -33,7 +34,9 @@ def train_model(df_path, model_type="xgboost", save_path=None, features=None, re
     df.columns = [col.strip().lower() for col in df.columns]
     df['datetime'] = pd.to_datetime(df['datetime'])
     df = df.sort_values(by="datetime")
-    df = generate_features(df)
+    
+    # Generate features with provided configuration
+    df = generate_features(df, feature_config)
     
     # Calculate 3-day returns and create target based on threshold
     df['return_3d'] = (df['close'].shift(-3) - df['close']) / df['close']
@@ -41,6 +44,16 @@ def train_model(df_path, model_type="xgboost", save_path=None, features=None, re
 
     # Use provided features or default set
     features = features or ["return_1", "sma_ratio", "volatility"]
+    
+    # Debug: Print available features
+    print("\nAvailable features:", df.columns.tolist())
+    print("\nSelected features:", features)
+    
+    # Verify all required features are available
+    missing_features = [f for f in features if f not in df.columns]
+    if missing_features:
+        raise ValueError(f"Missing features in dataset: {missing_features}")
+    
     X = df[features].fillna(0)
     y = df["target"]
 

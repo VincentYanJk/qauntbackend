@@ -59,6 +59,13 @@ class FeatureGenerator:
         return df
 
     @staticmethod
+    def momentum(df: pd.DataFrame, periods: List[int] = [5, 10, 20]) -> pd.DataFrame:
+        """Calculate price momentum over multiple periods"""
+        for period in periods:
+            df[f'momentum_{period}'] = df['close'] - df['close'].shift(period)
+        return df
+
+    @staticmethod
     def mfi(df: pd.DataFrame, periods: List[int] = [14], overbought: float = 80.0, oversold: float = 20.0) -> pd.DataFrame:
         """Calculate Money Flow Index and signals for multiple periods
         
@@ -123,6 +130,7 @@ def generate_features(df: pd.DataFrame, feature_config: Dict[str, Any] = None) -
             'volatility': {'periods': [10, 30]},
             'rsi': {'periods': [14, 28]},
             'volume': {'periods': [5, 10, 20]},
+            'momentum': {'periods': [5, 10, 20]},
             'mfi': {
                 'periods': [14],
                 'overbought': 80.0,
@@ -145,6 +153,8 @@ def generate_features(df: pd.DataFrame, feature_config: Dict[str, Any] = None) -
             df = generator.rsi(df, params.get('periods', [14, 28]))
         elif feature_type == 'volume':
             df = generator.volume_features(df, params.get('periods', [5, 10, 20]))
+        elif feature_type == 'momentum':
+            df = generator.momentum(df, params.get('periods', [5, 10, 20]))
         elif feature_type == 'mfi':
             df = generator.mfi(
                 df, 
@@ -165,6 +175,7 @@ def list_available_features(feature_config: Dict[str, Any] = None) -> List[str]:
             'volatility': {'periods': [10, 30]},
             'rsi': {'periods': [14, 28]},
             'volume': {'periods': [5, 10, 20]},
+            'momentum': {'periods': [5, 10, 20]},
             'mfi': {
                 'periods': [14],
                 'overbought': 80.0,
@@ -197,6 +208,10 @@ def list_available_features(feature_config: Dict[str, Any] = None) -> List[str]:
     for period in feature_config.get('volume', {}).get('periods', []):
         features.append(f'volume_sma_{period}')
         features.append(f'volume_ratio_{period}')
+    
+    # Momentum
+    for period in feature_config.get('momentum', {}).get('periods', []):
+        features.append(f'momentum_{period}')
     
     # MFI
     for period in feature_config.get('mfi', {}).get('periods', []):
