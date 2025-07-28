@@ -66,6 +66,7 @@ class MLSignalStrategy(bt.Strategy):
         ('features', ['return_1', 'sma_ratio', 'volatility']),  # Features to use for prediction
         ('feature_config', None),  # Feature generation configuration
         ('lookback', 50),  # Number of bars to look back for feature calculation
+        ('trade_size', 1.0),  # Position size as fraction of portfolio
     )
 
     def __init__(self):
@@ -131,25 +132,41 @@ class MLSignalStrategy(bt.Strategy):
             return None
         
     def _execute_trades(self, signal):
+        # Calculate position size
+        cash = self.broker.getcash()
+        price = self.data_close[0]
+        trade_cash = cash * self.params.trade_size
+        
+        # Get commission info
+        comminfo = self.broker.getcommissioninfo(self.data0)
+        commission_rate = comminfo.p.commission
+        slippage = self.broker.p.slip_perc if hasattr(self.broker.p, 'slip_perc') else 0
+        
+        # Calculate total cost rate
+        total_cost_rate = commission_rate + slippage
+        
+        # Calculate size accounting for costs
+        size = trade_cash / (price * (1 + total_cost_rate))
+
         # More aggressive trading logic
         if signal > 0:  # Buy signal
             if not self.position:  # If we don't have a position, buy
                 print(f"⬆️ BUYING at {self.data_close[0]:.2f}")
-                self.order = self.buy()
+                self.order = self.buy(size=size)
             # If we have a short position, close it and go long
             elif self.position.size < 0:
                 print(f"🔄 CLOSING SHORT & GOING LONG at {self.data_close[0]:.2f}")
                 self.order = self.close()
-                self.order = self.buy()
+                self.order = self.buy(size=size)
         else:  # Sell signal
             if not self.position:  # If we don't have a position, go short
                 print(f"⬇️ SELLING at {self.data_close[0]:.2f}")
-                self.order = self.sell()
+                self.order = self.sell(size=size)
             # If we have a long position, close it and go short
             elif self.position.size > 0:
                 print(f"🔄 CLOSING LONG & GOING SHORT at {self.data_close[0]:.2f}")
                 self.order = self.close()
-                self.order = self.sell()
+                self.order = self.sell(size=size)
             
     def notify_order(self, order):
         if order.status in [order.Completed]:

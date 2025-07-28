@@ -171,6 +171,7 @@ df, trades_df, performance = run_backtest(
         'model': model,
         'features': selected_features,
         'feature_config': feature_config,
+        'trade_size': 0.5,  # Use 50% of portfolio per trade
         'commission_scheme': {
             'commission': 0.002,  # 0.2% commission per trade
             'margin': False,

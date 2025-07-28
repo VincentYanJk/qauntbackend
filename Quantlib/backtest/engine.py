@@ -5,46 +5,53 @@ from .metrics import PerformanceAnalyzer
 
 class SignalRecorder(bt.Analyzer):
     def __init__(self):
+        super(SignalRecorder, self).__init__()
         self.trades = []
-        self.open_trade = None
         self.current_buy = None
-        super().__init__()
+        self.open_trade = None
 
     def notify_order(self, order):
-        if order.status == order.Completed:
-            # Record trade details
+        if order.status in [order.Completed]:
+            # Calculate commission based on trade value
+            trade_value = order.executed.price * abs(order.executed.size)
+            commission = order.executed.comm  # Commission is already calculated by backtrader based on trade value
+            
             trade_record = {
                 'datetime': self.strategy.datetime.datetime(0),
                 'price': order.executed.price,
                 'size': abs(order.executed.size),
-                'type': 'buy' if order.isbuy() else 'sell',
-                'commission': order.executed.comm
+                'commission': commission,  # Use actual commission for this trade
+                'type': 'buy' if order.isbuy() else 'sell'
             }
-            
+
             if order.isbuy():
-                # Store buy trade details for P&L calculation
                 self.current_buy = trade_record
             else:  # Sell order
                 if self.current_buy is not None:
                     # Calculate P&L for the buy trade
                     buy_value = self.current_buy['price'] * self.current_buy['size']
                     sell_value = order.executed.price * abs(order.executed.size)
-                    pnl = sell_value - buy_value
-                    total_commission = self.current_buy['commission'] + order.executed.comm
+                    
+                    # For buy trade, PNL is unrealized until sell
+                    buy_pnl = 0  # Buy trade has no realized PNL at the time of buying
+                    # For sell trade, PNL is the difference between sell and buy values
+                    sell_pnl = sell_value - buy_value
                     
                     # Update buy trade with P&L info
                     self.current_buy.update({
-                        'pnl': pnl,
-                        'commission': total_commission,
-                        'pnlcomm': pnl - total_commission
+                        'pnl': buy_pnl,  # No realized PNL at buy time
+                        'commission': self.current_buy['commission'],  # Keep original buy commission
+                        'pnlcomm': buy_pnl - self.current_buy['commission'],  # Only commission as cost at buy time
+                        'signal': 1  # Add signal value for buy
                     })
                     self.trades.append(self.current_buy)
                     
-                    # Record sell trade
+                    # Record sell trade with its own P&L info and commission
                     trade_record.update({
-                        'pnl': pnl,
-                        'commission': total_commission,
-                        'pnlcomm': pnl - total_commission
+                        'pnl': sell_pnl,  # Realized PNL at sell time
+                        'commission': commission,  # Use actual sell commission
+                        'pnlcomm': sell_pnl - commission,  # Sell trade's pnlcomm includes the realized PNL minus its commission
+                        'signal': -1  # Add signal value for sell
                     })
                     self.trades.append(trade_record)
                     
@@ -84,12 +91,13 @@ class SignalRecorder(bt.Analyzer):
                 'pnl': pnl,
                 'commission': commission,
                 'pnlcomm': pnl - commission,
-                'type': 'buy' if self.open_trade.size > 0 else 'sell'
+                'type': 'buy' if self.open_trade.size > 0 else 'sell',
+                'signal': 1 if self.open_trade.size > 0 else -1
             })
 
     def get_analysis(self):
         if not self.trades:
-            return pd.DataFrame(columns=['datetime', 'price', 'size', 'pnl', 'commission', 'pnlcomm', 'type'])
+            return pd.DataFrame(columns=['datetime', 'price', 'size', 'pnl', 'commission', 'pnlcomm', 'type', 'signal'])
         return pd.DataFrame(self.trades)
 
 class PerformanceSummary:
