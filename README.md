@@ -1,6 +1,6 @@
-# GPTQuant: BTC Quant Trading Framework
+# Quant Trading Framework
 
-GPTQuant is a professional-grade modular framework for backtesting and live trading of Bitcoin strategies. It supports classical strategies, machine learning models, and real-time Binance integration.
+This is a professional-grade modular framework for backtesting and live trading of Bitcoin strategies. It supports classical strategies, machine learning models, and real-time Binance integration.
 
 ---
 
